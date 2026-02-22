@@ -24,7 +24,7 @@ export const metadata: Metadata = {
   },
   description: "Explore the meaning behind your favorite songs. Expert lyric analyses covering metaphor, symbolism, and cultural context.",
 
-  // ── Tambahkan 4 baris ini ──────────────────────────────
+ 
   metadataBase: new URL("https://lyricventure.com"),
   openGraph: {
     siteName: "LyricVenture",
@@ -39,7 +39,7 @@ export const metadata: Metadata = {
     index:  true,
     follow: true,
   },
-  // ───────────────────────────────────────────────────────
+
 };
 
 export default function RootLayout({

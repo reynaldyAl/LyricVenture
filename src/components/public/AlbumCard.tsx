@@ -17,9 +17,13 @@ export default function AlbumCard({
   const year = releaseDate ? new Date(releaseDate).getFullYear() : null;
 
   return (
-    <Link href={`/albums/${slug}`} className="group flex flex-col gap-2">
-      {/* Cover */}
-      <div className="relative aspect-square bg-[#E8E5E0] overflow-hidden shadow-sm group-hover:shadow-md transition-shadow">
+    // ✅ Ganti <Link> jadi <div> — bukan lagi <a>
+    <div className="group flex flex-col gap-2">
+      {/* Cover — area klik ke album */}
+      <Link
+        href={`/albums/${slug}`}
+        className="relative aspect-square bg-[#E8E5E0] overflow-hidden shadow-sm group-hover:shadow-md transition-shadow block"
+      >
         {coverImage ? (
           <Image
             src={coverImage}
@@ -41,19 +45,27 @@ export default function AlbumCard({
             {albumType}
           </span>
         )}
-      </div>
-      {/* Info */}
+      </Link>
+
+      {/* Info — judul klik ke album, artist klik ke artist */}
       <div>
-        <p className="text-sm font-semibold text-[#1A1917] leading-tight truncate group-hover:text-[#3B5BDB] transition-colors">
+        <Link
+          href={`/albums/${slug}`}
+          className="text-sm font-semibold text-[#1A1917] leading-tight truncate hover:text-[#3B5BDB] transition-colors block"
+        >
           {title}
-        </p>
+        </Link>
         <p className="text-xs text-[#8A8680] truncate">
-          <Link href={`/artists/${artistSlug}`} className="hover:text-[#3B5BDB] transition-colors">
+          {/* ✅ Link ini sekarang tidak nested — <div> bukan <a> di atas */}
+          <Link
+            href={`/artists/${artistSlug}`}
+            className="hover:text-[#3B5BDB] transition-colors"
+          >
             {artistName}
           </Link>
           {year && <span className="text-[#C0B8AE]"> · {year}</span>}
         </p>
       </div>
-    </Link>
+    </div>
   );
 }

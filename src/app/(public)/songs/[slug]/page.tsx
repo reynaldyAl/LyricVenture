@@ -56,7 +56,8 @@ type SongDetail = Tables<"songs"> & {
   artists:        Tables<"artists"> | null;
   albums:         Tables<"albums">  | null;
   song_tags:      { tags: Pick<Tables<"tags">, "id" | "name" | "slug" | "color"> | null }[];
-  lyric_analyses: Analysis[];
+  // ✅ Bisa array ATAU object tergantung Supabase response
+  lyric_analyses: Analysis[] | Analysis | null;
 };
 
 // ── Data ───────────────────────────────────────────────────
@@ -97,7 +98,6 @@ async function getRelatedSongs(artistId: string, currentSlug: string) {
   return (data ?? []) as any[];
 }
 
-// ✅ Fix — tambahkan cast as any
 async function incrementViewCount(songId: string) {
   const supabase = await createClient();
   (supabase.rpc as any)("increment_song_view", { song_id: songId }).then(() => {});
@@ -118,13 +118,19 @@ export default async function SongDetailPage({
   const song     = await getSong(slug);
   if (!song) notFound();
 
-  // ✅ TAMBAHAN — increment view, tidak block render
+  // increment view, tidak block render
   incrementViewCount(song.id);
 
   const artist        = song.artists as any;
   const album         = song.albums  as any;
   const tags          = song.song_tags.map((st) => st.tags).filter(Boolean) as any[];
-  const analysis      = (song.lyric_analyses?.[0] ?? null) as Analysis | null;
+  // ✅ Handle array atau object langsung
+  const rawAnalysis   = song.lyric_analyses;
+  const analysis      = (
+    Array.isArray(rawAnalysis)
+      ? (rawAnalysis[0] ?? null)
+      : (rawAnalysis ?? null)
+  ) as Analysis | null;
   const relatedSongs  = artist?.id
     ? await getRelatedSongs(artist.id, slug)
     : [];
