@@ -8,11 +8,12 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatDate } from "@/lib/utils";
 
+// ✅ Fix: pakai status bukan is_published
 type RecentSong = {
   id: string;
   title: string;
   slug: string;
-  is_published: boolean;
+  status: string | null;
   created_at: string;
   artists: { name: string } | null;
 };
@@ -20,7 +21,7 @@ type RecentSong = {
 type RecentAnalysis = {
   id: string;
   theme: string | null;
-  is_published: boolean;
+  status: string | null;
   created_at: string;
   songs: { title: string; slug: string } | null;
 };
@@ -40,14 +41,19 @@ interface DashboardTabsProps {
   recentArtists:  RecentArtist[];
 }
 
-function PublishedBadge({ published }: { published: boolean }) {
-  return published ? (
-    <Badge className="text-[10px] h-5 px-1.5 bg-emerald-900/40 text-emerald-400 border border-emerald-800/60 hover:bg-emerald-900/40">
-      Published
-    </Badge>
-  ) : (
-    <Badge variant="secondary" className="text-[10px] h-5 px-1.5 bg-zinc-800 text-zinc-500 border-zinc-700">
-      Draft
+// ✅ Fix: StatusBadge pakai status string
+const STATUS_COLORS: Record<string, string> = {
+  published: "bg-emerald-900/40 text-emerald-400 border-emerald-800/60",
+  pending:   "bg-amber-900/40 text-amber-400 border-amber-800/60",
+  rejected:  "bg-red-900/40 text-red-400 border-red-800/60",
+  draft:     "bg-zinc-800 text-zinc-500 border-zinc-700",
+};
+
+function StatusBadge({ status }: { status: string | null }) {
+  const s = status ?? "draft";
+  return (
+    <Badge className={`text-[10px] h-5 px-1.5 border capitalize hover:opacity-100 ${STATUS_COLORS[s] ?? STATUS_COLORS.draft}`}>
+      {s}
     </Badge>
   );
 }
@@ -60,22 +66,16 @@ export default function DashboardTabs({
   return (
     <Tabs defaultValue="songs" className="space-y-4">
       <TabsList className="bg-zinc-900 border border-zinc-800 h-8">
-        <TabsTrigger
-          value="songs"
-          className="text-xs h-6 data-[state=active]:bg-zinc-700 data-[state=active]:text-zinc-100 text-zinc-400"
-        >
+        <TabsTrigger value="songs"
+          className="text-xs h-6 data-[state=active]:bg-zinc-700 data-[state=active]:text-zinc-100 text-zinc-400">
           Recent Songs
         </TabsTrigger>
-        <TabsTrigger
-          value="analyses"
-          className="text-xs h-6 data-[state=active]:bg-zinc-700 data-[state=active]:text-zinc-100 text-zinc-400"
-        >
+        <TabsTrigger value="analyses"
+          className="text-xs h-6 data-[state=active]:bg-zinc-700 data-[state=active]:text-zinc-100 text-zinc-400">
           Recent Analyses
         </TabsTrigger>
-        <TabsTrigger
-          value="artists"
-          className="text-xs h-6 data-[state=active]:bg-zinc-700 data-[state=active]:text-zinc-100 text-zinc-400"
-        >
+        <TabsTrigger value="artists"
+          className="text-xs h-6 data-[state=active]:bg-zinc-700 data-[state=active]:text-zinc-100 text-zinc-400">
           Artists
         </TabsTrigger>
       </TabsList>
@@ -104,10 +104,8 @@ export default function DashboardTabs({
             ) : (
               <div className="divide-y divide-zinc-800/60">
                 {recentSongs.map((song) => (
-                  <div
-                    key={song.id}
-                    className="flex items-center justify-between gap-3 px-5 py-3 hover:bg-zinc-800/40 transition-colors group"
-                  >
+                  <div key={song.id}
+                    className="flex items-center justify-between gap-3 px-5 py-3 hover:bg-zinc-800/40 transition-colors group">
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-zinc-200 truncate group-hover:text-indigo-300 transition-colors">
                         {song.title}
@@ -117,13 +115,9 @@ export default function DashboardTabs({
                       </p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <PublishedBadge published={song.is_published} />
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        asChild
-                        className="h-6 text-[10px] text-zinc-600 hover:text-zinc-300 px-2 hidden sm:flex"
-                      >
+                      <StatusBadge status={song.status} /> {/* ✅ fix */}
+                      <Button variant="ghost" size="sm" asChild
+                        className="h-6 text-[10px] text-zinc-600 hover:text-zinc-300 px-2 hidden sm:flex">
                         <Link href={`/dashboard/songs/${song.slug}`}>Edit</Link>
                       </Button>
                     </div>
@@ -159,10 +153,8 @@ export default function DashboardTabs({
             ) : (
               <div className="divide-y divide-zinc-800/60">
                 {recentAnalyses.map((analysis) => (
-                  <div
-                    key={analysis.id}
-                    className="flex items-center justify-between gap-3 px-5 py-3 hover:bg-zinc-800/40 transition-colors group"
-                  >
+                  <div key={analysis.id}
+                    className="flex items-center justify-between gap-3 px-5 py-3 hover:bg-zinc-800/40 transition-colors group">
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-zinc-200 truncate group-hover:text-indigo-300 transition-colors">
                         {analysis.songs?.title ?? "—"}
@@ -172,13 +164,9 @@ export default function DashboardTabs({
                       </p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <PublishedBadge published={analysis.is_published} />
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        asChild
-                        className="h-6 text-[10px] text-zinc-600 hover:text-zinc-300 px-2 hidden sm:flex"
-                      >
+                      <StatusBadge status={analysis.status} /> {/* ✅ fix */}
+                      <Button variant="ghost" size="sm" asChild
+                        className="h-6 text-[10px] text-zinc-600 hover:text-zinc-300 px-2 hidden sm:flex">
                         <Link href={`/dashboard/analyses/${analysis.id}`}>Edit</Link>
                       </Button>
                     </div>
@@ -214,10 +202,8 @@ export default function DashboardTabs({
             ) : (
               <div className="divide-y divide-zinc-800/60">
                 {recentArtists.map((artist) => (
-                  <div
-                    key={artist.id}
-                    className="flex items-center justify-between gap-3 px-5 py-3 hover:bg-zinc-800/40 transition-colors group"
-                  >
+                  <div key={artist.id}
+                    className="flex items-center justify-between gap-3 px-5 py-3 hover:bg-zinc-800/40 transition-colors group">
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-zinc-200 truncate group-hover:text-indigo-300 transition-colors">
                         {artist.name}
@@ -227,21 +213,15 @@ export default function DashboardTabs({
                       </p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <Badge
-                        className={`text-[10px] h-5 px-1.5 ${
-                          artist.is_active
-                            ? "bg-emerald-900/40 text-emerald-400 border border-emerald-800/60 hover:bg-emerald-900/40"
-                            : "bg-zinc-800 text-zinc-500 border-zinc-700"
-                        }`}
-                      >
+                      <Badge className={`text-[10px] h-5 px-1.5 ${
+                        artist.is_active
+                          ? "bg-emerald-900/40 text-emerald-400 border border-emerald-800/60 hover:bg-emerald-900/40"
+                          : "bg-zinc-800 text-zinc-500 border-zinc-700"
+                      }`}>
                         {artist.is_active ? "Active" : "Inactive"}
                       </Badge>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        asChild
-                        className="h-6 text-[10px] text-zinc-600 hover:text-zinc-300 px-2 hidden sm:flex"
-                      >
+                      <Button variant="ghost" size="sm" asChild
+                        className="h-6 text-[10px] text-zinc-600 hover:text-zinc-300 px-2 hidden sm:flex">
                         <Link href={`/dashboard/artists/${artist.slug}`}>Edit</Link>
                       </Button>
                     </div>
