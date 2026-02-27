@@ -11,11 +11,14 @@ import {
   DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import ModerationButtons from "@/components/admin/ModerationButtons";
 import type { Tables } from "@/lib/types";
 
 type AlbumRow = Pick<
   Tables<"albums">,
-  "id" | "title" | "slug" | "cover_image" | "release_date" | "album_type" | "total_tracks" | "created_at"
+  | "id" | "title" | "slug" | "cover_image"
+  | "release_date" | "album_type" | "total_tracks"
+  | "created_at" | "status"
 > & {
   artists: Pick<Tables<"artists">, "id" | "name" | "slug"> | null;
 };
@@ -28,7 +31,20 @@ const TYPE_COLORS: Record<string, string> = {
   live:        "bg-rose-900/40 text-rose-400 border-rose-800/60",
 };
 
-export default function AlbumTableClient({ albums }: { albums: AlbumRow[] }) {
+const STATUS_COLORS: Record<string, string> = {
+  published: "bg-emerald-900/40 text-emerald-400 border-emerald-800/60",
+  pending:   "bg-amber-900/40 text-amber-400 border-amber-800/60",
+  rejected:  "bg-red-900/40 text-red-400 border-red-800/60",
+  draft:     "bg-zinc-800 text-zinc-500 border-zinc-700",
+};
+
+export default function AlbumTableClient({
+  albums,
+  role,
+}: {
+  albums: AlbumRow[];
+  role: "admin" | "author";
+}) {
   const router = useRouter();
   const { toast } = useToast();
   const [search, setSearch]             = useState("");
@@ -81,6 +97,7 @@ export default function AlbumTableClient({ albums }: { albums: AlbumRow[] }) {
                 <th className="px-4 py-3 text-left font-medium hidden sm:table-cell">Type</th>
                 <th className="px-4 py-3 text-left font-medium hidden lg:table-cell">Tracks</th>
                 <th className="px-4 py-3 text-left font-medium hidden lg:table-cell">Year</th>
+                <th className="px-4 py-3 text-left font-medium hidden sm:table-cell">Status</th>
                 <th className="px-4 py-3 text-right font-medium">Actions</th>
               </tr>
             </thead>
@@ -91,6 +108,7 @@ export default function AlbumTableClient({ albums }: { albums: AlbumRow[] }) {
                   : null;
                 return (
                   <tr key={album.id} className="hover:bg-zinc-800/30 transition-colors group">
+
                     {/* Title + cover */}
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-3">
@@ -107,18 +125,14 @@ export default function AlbumTableClient({ albums }: { albums: AlbumRow[] }) {
 
                     {/* Artist */}
                     <td className="px-4 py-3 hidden md:table-cell">
-                      <span className="text-zinc-400 text-xs">
-                        {album.artists?.name ?? "—"}
-                      </span>
+                      <span className="text-zinc-400 text-xs">{album.artists?.name ?? "—"}</span>
                     </td>
 
                     {/* Type badge */}
                     <td className="px-4 py-3 hidden sm:table-cell">
-                      <Badge
-                        className={`text-[10px] h-5 px-1.5 border capitalize ${
-                          TYPE_COLORS[album.album_type] ?? "bg-zinc-800 text-zinc-400 border-zinc-700"
-                        }`}
-                      >
+                      <Badge className={`text-[10px] h-5 px-1.5 border capitalize ${
+                        TYPE_COLORS[album.album_type] ?? "bg-zinc-800 text-zinc-400 border-zinc-700"
+                      }`}>
                         {album.album_type}
                       </Badge>
                     </td>
@@ -133,9 +147,26 @@ export default function AlbumTableClient({ albums }: { albums: AlbumRow[] }) {
                       {year ?? "—"}
                     </td>
 
+                    {/* Status */}
+                    <td className="px-4 py-3 hidden sm:table-cell">
+                      <Badge className={`text-[10px] h-5 px-1.5 border capitalize ${
+                        STATUS_COLORS[album.status ?? "draft"] ?? STATUS_COLORS.draft
+                      }`}>
+                        {album.status ?? "draft"}
+                      </Badge>
+                    </td>
+
                     {/* Actions */}
                     <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-1">
+                      <div className="flex items-center justify-end gap-1 flex-wrap">
+                        {role === "admin" && (
+                          <ModerationButtons
+                            table="albums"
+                            id={album.id}
+                            status={album.status}
+                            revalidate="/dashboard/albums"
+                          />
+                        )}
                         <Button variant="ghost" size="sm" asChild
                           className="h-7 text-xs text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 px-2">
                           <Link href={`/dashboard/albums/${album.slug}`}>Edit</Link>

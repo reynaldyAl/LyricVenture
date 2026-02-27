@@ -15,16 +15,25 @@ import {
   SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import ModerationButtons from "@/components/admin/ModerationButtons";
 import type { Tables } from "@/lib/types";
 
 type SongRow = Pick<
   Tables<"songs">,
-  "id" | "title" | "slug" | "cover_image" | "language" |
-  "is_published" | "duration_sec" | "view_count" | "created_at"
+  | "id" | "title" | "slug" | "cover_image" | "language"
+  | "is_published" | "duration_sec" | "view_count"
+  | "created_at" | "status"
 > & {
-  artists: Pick<Tables<"artists">, "id" | "name" | "slug"> | null;
-  albums:  Pick<Tables<"albums">,  "id" | "title" | "slug"> | null;
+  artists:   Pick<Tables<"artists">, "id" | "name" | "slug"> | null;
+  albums:    Pick<Tables<"albums">,  "id" | "title" | "slug"> | null;
   song_tags: { tags: Pick<Tables<"tags">, "id" | "name" | "color"> | null }[];
+};
+
+const STATUS_COLORS: Record<string, string> = {
+  published: "bg-emerald-900/40 text-emerald-400 border-emerald-800/60",
+  pending:   "bg-amber-900/40 text-amber-400 border-amber-800/60",
+  rejected:  "bg-red-900/40 text-red-400 border-red-800/60",
+  draft:     "bg-zinc-800 text-zinc-500 border-zinc-700",
 };
 
 function formatDuration(sec: number | null) {
@@ -32,30 +41,31 @@ function formatDuration(sec: number | null) {
   return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`;
 }
 
-export default function SongTableClient({ songs }: { songs: SongRow[] }) {
+export default function SongTableClient({
+  songs,
+  role,
+}: {
+  songs: SongRow[];
+  role: "admin" | "author";
+}) {
   const router = useRouter();
   const { toast } = useToast();
   const [search, setSearch]             = useState("");
-  const [filterStatus, setFilterStatus] = useState<"all" | "published" | "draft">("all");
+  const [filterStatus, setFilterStatus] = useState<"all" | "published" | "pending" | "draft" | "rejected">("all");
   const [deleteTarget, setDeleteTarget] = useState<SongRow | null>(null);
   const [isPending, startTransition]    = useTransition();
 
-  // Filter
   const filtered = songs.filter((s) => {
     const matchSearch =
       s.title.toLowerCase().includes(search.toLowerCase()) ||
       (s.artists?.name ?? "").toLowerCase().includes(search.toLowerCase());
-    const matchStatus =
-      filterStatus === "all" ||
-      (filterStatus === "published" && s.is_published) ||
-      (filterStatus === "draft"     && !s.is_published);
+    const matchStatus = filterStatus === "all" || s.status === filterStatus;
     return matchSearch && matchStatus;
   });
 
   async function handleDelete() {
     if (!deleteTarget) return;
     startTransition(async () => {
-      // DELETE /api/songs/[slug] — requireAdmin
       const res = await fetch(`/api/songs/${deleteTarget.slug}`, { method: "DELETE" });
       if (res.ok) {
         toast({ title: "Song deleted", description: `"${deleteTarget.title}" removed.` });
@@ -78,17 +88,16 @@ export default function SongTableClient({ songs }: { songs: SongRow[] }) {
           onChange={(e) => setSearch(e.target.value)}
           className="h-8 text-sm bg-zinc-800 border-zinc-700 text-zinc-200 placeholder:text-zinc-500 max-w-xs"
         />
-        <Select
-          value={filterStatus}
-          onValueChange={(v) => setFilterStatus(v as typeof filterStatus)}
-        >
+        <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v as typeof filterStatus)}>
           <SelectTrigger className="h-8 text-sm bg-zinc-800 border-zinc-700 text-zinc-300 w-36">
             <SelectValue />
           </SelectTrigger>
           <SelectContent className="bg-zinc-900 border-zinc-700 text-zinc-200">
             <SelectItem value="all"       className="text-sm hover:bg-zinc-800 focus:bg-zinc-800">All</SelectItem>
             <SelectItem value="published" className="text-sm hover:bg-zinc-800 focus:bg-zinc-800">Published</SelectItem>
+            <SelectItem value="pending"   className="text-sm hover:bg-zinc-800 focus:bg-zinc-800">Pending</SelectItem>
             <SelectItem value="draft"     className="text-sm hover:bg-zinc-800 focus:bg-zinc-800">Draft</SelectItem>
+            <SelectItem value="rejected"  className="text-sm hover:bg-zinc-800 focus:bg-zinc-800">Rejected</SelectItem>
           </SelectContent>
         </Select>
         <span className="text-xs text-zinc-600 self-center ml-auto">
@@ -96,12 +105,9 @@ export default function SongTableClient({ songs }: { songs: SongRow[] }) {
         </span>
       </div>
 
-      {/* Table */}
       {filtered.length === 0 ? (
         <div className="py-16 text-center text-zinc-600 text-sm italic">
-          {search || filterStatus !== "all"
-            ? "No songs match your filter."
-            : "No songs yet. Add the first one!"}
+          {search || filterStatus !== "all" ? "No songs match your filter." : "No songs yet. Add the first one!"}
         </div>
       ) : (
         <div className="overflow-x-auto">
@@ -155,15 +161,12 @@ export default function SongTableClient({ songs }: { songs: SongRow[] }) {
                     <div className="flex flex-wrap gap-1">
                       {song.song_tags.slice(0, 2).map((st) =>
                         st.tags ? (
-                          <Badge
-                            key={st.tags.id}
-                            className="text-[9px] h-4 px-1 border"
+                          <Badge key={st.tags.id} className="text-[9px] h-4 px-1 border"
                             style={{
-                              background: st.tags.color ? `${st.tags.color}20` : undefined,
+                              background:  st.tags.color ? `${st.tags.color}20` : undefined,
                               borderColor: st.tags.color ? `${st.tags.color}50` : undefined,
-                              color: st.tags.color ?? "#71717a",
-                            }}
-                          >
+                              color:       st.tags.color ?? "#71717a",
+                            }}>
                             {st.tags.name}
                           </Badge>
                         ) : null
@@ -176,14 +179,10 @@ export default function SongTableClient({ songs }: { songs: SongRow[] }) {
 
                   {/* Status */}
                   <td className="px-4 py-3 hidden sm:table-cell">
-                    <Badge
-                      className={`text-[10px] h-5 px-1.5 ${
-                        song.is_published
-                          ? "bg-emerald-900/40 text-emerald-400 border border-emerald-800/60 hover:bg-emerald-900/40"
-                          : "bg-zinc-800 text-zinc-500 border-zinc-700"
-                      }`}
-                    >
-                      {song.is_published ? "Published" : "Draft"}
+                    <Badge className={`text-[10px] h-5 px-1.5 border capitalize ${
+                      STATUS_COLORS[song.status ?? "draft"] ?? STATUS_COLORS.draft
+                    }`}>
+                      {song.status ?? "draft"}
                     </Badge>
                   </td>
 
@@ -196,7 +195,15 @@ export default function SongTableClient({ songs }: { songs: SongRow[] }) {
 
                   {/* Actions */}
                   <td className="px-4 py-3 text-right">
-                    <div className="flex items-center justify-end gap-1">
+                    <div className="flex items-center justify-end gap-1 flex-wrap">
+                      {role === "admin" && (
+                        <ModerationButtons
+                          table="songs"
+                          id={song.id}
+                          status={song.status}
+                          revalidate="/dashboard/songs"
+                        />
+                      )}
                       <Button variant="ghost" size="sm" asChild
                         className="h-7 text-xs text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 px-2">
                         <Link href={`/dashboard/songs/${song.slug}`}>Edit</Link>
@@ -228,9 +235,7 @@ export default function SongTableClient({ songs }: { songs: SongRow[] }) {
           </DialogHeader>
           <DialogFooter className="gap-2">
             <Button variant="outline" size="sm" onClick={() => setDeleteTarget(null)}
-              className="border-zinc-700 text-zinc-300 hover:bg-zinc-800">
-              Cancel
-            </Button>
+              className="border-zinc-700 text-zinc-300 hover:bg-zinc-800">Cancel</Button>
             <Button size="sm" onClick={handleDelete} disabled={isPending}
               className="bg-red-600 hover:bg-red-700 text-white min-w-[100px]">
               {isPending ? "Deleting..." : "Delete Song"}

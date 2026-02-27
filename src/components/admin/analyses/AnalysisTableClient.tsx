@@ -11,17 +11,32 @@ import {
   DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import ModerationButtons from "@/components/admin/ModerationButtons";
 import type { Tables } from "@/lib/types";
 
 type AnalysisRow = Pick<
-  Tables<"lyric_analyses">, "id" | "theme" | "is_published" | "created_at"
+  Tables<"lyric_analyses">,
+  "id" | "theme" | "is_published" | "created_at" | "status"
 > & {
   songs: (Pick<Tables<"songs">, "id" | "title" | "slug" | "cover_image"> & {
     artists: Pick<Tables<"artists">, "id" | "name" | "slug"> | null;
   }) | null;
 };
 
-export default function AnalysisTableClient({ analyses }: { analyses: AnalysisRow[] }) {
+const STATUS_COLORS: Record<string, string> = {
+  published: "bg-emerald-900/40 text-emerald-400 border-emerald-800/60",
+  pending:   "bg-amber-900/40 text-amber-400 border-amber-800/60",
+  rejected:  "bg-red-900/40 text-red-400 border-red-800/60",
+  draft:     "bg-zinc-800 text-zinc-500 border-zinc-700",
+};
+
+export default function AnalysisTableClient({
+  analyses,
+  role,
+}: {
+  analyses: AnalysisRow[];
+  role: "admin" | "author";
+}) {
   const router = useRouter();
   const { toast } = useToast();
   const [search, setSearch]             = useState("");
@@ -37,7 +52,6 @@ export default function AnalysisTableClient({ analyses }: { analyses: AnalysisRo
   async function handleDelete() {
     if (!deleteTarget) return;
     startTransition(async () => {
-      // DELETE /api/lyric-analyses/[id]
       const res = await fetch(`/api/lyric-analyses/${deleteTarget.id}`, { method: "DELETE" });
       if (res.ok) {
         toast({ title: "Analysis deleted", description: `Analysis for "${deleteTarget.songs?.title}" removed.` });
@@ -81,6 +95,7 @@ export default function AnalysisTableClient({ analyses }: { analyses: AnalysisRo
             <tbody className="divide-y divide-zinc-800/60">
               {filtered.map((analysis) => (
                 <tr key={analysis.id} className="hover:bg-zinc-800/30 transition-colors group">
+
                   {/* Song */}
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-3">
@@ -107,18 +122,24 @@ export default function AnalysisTableClient({ analyses }: { analyses: AnalysisRo
 
                   {/* Status */}
                   <td className="px-4 py-3 hidden sm:table-cell">
-                    <Badge className={`text-[10px] h-5 px-1.5 ${
-                      analysis.is_published
-                        ? "bg-emerald-900/40 text-emerald-400 border border-emerald-800/60 hover:bg-emerald-900/40"
-                        : "bg-zinc-800 text-zinc-500 border-zinc-700"
+                    <Badge className={`text-[10px] h-5 px-1.5 border capitalize ${
+                      STATUS_COLORS[analysis.status ?? "draft"] ?? STATUS_COLORS.draft
                     }`}>
-                      {analysis.is_published ? "Published" : "Draft"}
+                      {analysis.status ?? "draft"}
                     </Badge>
                   </td>
 
                   {/* Actions */}
                   <td className="px-4 py-3 text-right">
-                    <div className="flex items-center justify-end gap-1">
+                    <div className="flex items-center justify-end gap-1 flex-wrap">
+                      {role === "admin" && (
+                        <ModerationButtons
+                          table="lyric_analyses"
+                          id={analysis.id}
+                          status={analysis.status}
+                          revalidate="/dashboard/analyses"
+                        />
+                      )}
                       <Button variant="ghost" size="sm" asChild
                         className="h-7 text-xs text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 px-2">
                         <Link href={`/dashboard/analyses/${analysis.id}`}>Edit</Link>

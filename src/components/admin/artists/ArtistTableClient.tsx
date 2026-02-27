@@ -11,19 +11,30 @@ import {
   DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import ModerationButtons from "@/components/admin/ModerationButtons";
 import type { Tables } from "@/lib/types";
 
-// ✅ Sama persis dengan type di page.tsx — konsisten
 type ArtistRow = Pick<
   Tables<"artists">,
-  "id" | "name" | "slug" | "origin" | "genre" | "is_active" | "formed_year" | "cover_image" | "created_at"
+  | "id" | "name" | "slug" | "origin" | "genre"
+  | "is_active" | "formed_year" | "cover_image"
+  | "created_at" | "status"
 >;
 
-interface Props {
-  artists: ArtistRow[];
-}
+const STATUS_COLORS: Record<string, string> = {
+  published: "bg-emerald-900/40 text-emerald-400 border-emerald-800/60",
+  pending:   "bg-amber-900/40 text-amber-400 border-amber-800/60",
+  rejected:  "bg-red-900/40 text-red-400 border-red-800/60",
+  draft:     "bg-zinc-800 text-zinc-500 border-zinc-700",
+};
 
-export default function ArtistTableClient({ artists }: Props) {
+export default function ArtistTableClient({
+  artists,
+  role,
+}: {
+  artists: ArtistRow[];
+  role: "admin" | "author";
+}) {
   const router = useRouter();
   const { toast } = useToast();
   const [search, setSearch]             = useState("");
@@ -38,22 +49,13 @@ export default function ArtistTableClient({ artists }: Props) {
   async function handleDelete() {
     if (!deleteTarget) return;
     startTransition(async () => {
-      const res = await fetch(`/api/artists/${deleteTarget.slug}`, {
-        method: "DELETE",
-      });
+      const res = await fetch(`/api/artists/${deleteTarget.slug}`, { method: "DELETE" });
       if (res.ok) {
-        toast({
-          title: "Artist deleted",
-          description: `"${deleteTarget.name}" has been removed.`,
-        });
+        toast({ title: "Artist deleted", description: `"${deleteTarget.name}" has been removed.` });
         router.refresh();
       } else {
         const json = await res.json().catch(() => ({}));
-        toast({
-          title: "Error",
-          description: json.error ?? "Something went wrong",
-          variant: "destructive",
-        });
+        toast({ title: "Error", description: json.error ?? "Something went wrong", variant: "destructive" });
       }
       setDeleteTarget(null);
     });
@@ -71,7 +73,6 @@ export default function ArtistTableClient({ artists }: Props) {
         />
       </div>
 
-      {/* Empty state */}
       {filtered.length === 0 ? (
         <div className="py-16 text-center text-zinc-600 text-sm italic">
           {search ? `No artists matching "${search}"` : "No artists yet. Add the first one!"}
@@ -84,6 +85,7 @@ export default function ArtistTableClient({ artists }: Props) {
                 <th className="px-5 py-3 text-left font-medium">Artist</th>
                 <th className="px-4 py-3 text-left font-medium hidden md:table-cell">Origin</th>
                 <th className="px-4 py-3 text-left font-medium hidden lg:table-cell">Genre</th>
+                <th className="px-4 py-3 text-left font-medium hidden sm:table-cell">Active</th>
                 <th className="px-4 py-3 text-left font-medium hidden sm:table-cell">Status</th>
                 <th className="px-4 py-3 text-right font-medium">Actions</th>
               </tr>
@@ -111,11 +113,8 @@ export default function ArtistTableClient({ artists }: Props) {
                   <td className="px-4 py-3 hidden lg:table-cell">
                     <div className="flex flex-wrap gap-1">
                       {(artist.genre ?? []).slice(0, 2).map((g: string) => (
-                        <Badge
-                          key={g}
-                          variant="secondary"
-                          className="text-[9px] h-4 px-1 bg-zinc-800 text-zinc-400 border-zinc-700"
-                        >
+                        <Badge key={g} variant="secondary"
+                          className="text-[9px] h-4 px-1 bg-zinc-800 text-zinc-400 border-zinc-700">
                           {g}
                         </Badge>
                       ))}
@@ -127,36 +126,44 @@ export default function ArtistTableClient({ artists }: Props) {
                     </div>
                   </td>
 
+                  {/* Active */}
+                  <td className="px-4 py-3 hidden sm:table-cell">
+                    <Badge className={`text-[10px] h-5 px-1.5 border ${
+                      artist.is_active
+                        ? "bg-emerald-900/40 text-emerald-400 border-emerald-800/60"
+                        : "bg-zinc-800 text-zinc-500 border-zinc-700"
+                    }`}>
+                      {artist.is_active ? "Active" : "Inactive"}
+                    </Badge>
+                  </td>
+
                   {/* Status */}
                   <td className="px-4 py-3 hidden sm:table-cell">
-                    <Badge
-                      className={`text-[10px] h-5 px-1.5 ${
-                        artist.is_active
-                          ? "bg-emerald-900/40 text-emerald-400 border border-emerald-800/60 hover:bg-emerald-900/40"
-                          : "bg-zinc-800 text-zinc-500 border-zinc-700"
-                      }`}
-                    >
-                      {artist.is_active ? "Active" : "Inactive"}
+                    <Badge className={`text-[10px] h-5 px-1.5 border capitalize ${
+                      STATUS_COLORS[artist.status ?? "draft"] ?? STATUS_COLORS.draft
+                    }`}>
+                      {artist.status ?? "draft"}
                     </Badge>
                   </td>
 
                   {/* Actions */}
                   <td className="px-4 py-3 text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        asChild
-                        className="h-7 text-xs text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 px-2"
-                      >
+                    <div className="flex items-center justify-end gap-1 flex-wrap">
+                      {role === "admin" && (
+                        <ModerationButtons
+                          table="artists"
+                          id={artist.id}
+                          status={artist.status}
+                          revalidate="/dashboard/artists"
+                        />
+                      )}
+                      <Button variant="ghost" size="sm" asChild
+                        className="h-7 text-xs text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 px-2">
                         <Link href={`/dashboard/artists/${artist.slug}`}>Edit</Link>
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
+                      <Button variant="ghost" size="sm"
                         onClick={() => setDeleteTarget(artist)}
-                        className="h-7 text-xs text-zinc-600 hover:text-red-400 hover:bg-red-950/30 px-2"
-                      >
+                        className="h-7 text-xs text-zinc-600 hover:text-red-400 hover:bg-red-950/30 px-2">
                         Delete
                       </Button>
                     </div>
@@ -175,27 +182,17 @@ export default function ArtistTableClient({ artists }: Props) {
             <DialogTitle className="font-serif text-zinc-100">Delete Artist?</DialogTitle>
             <DialogDescription className="text-zinc-400">
               This will permanently delete{" "}
-              <span className="text-zinc-200 font-medium">
-                &quot;{deleteTarget?.name}&quot;
-              </span>{" "}
+              <span className="text-zinc-200 font-medium">&quot;{deleteTarget?.name}&quot;</span>{" "}
               and all related data. This cannot be undone.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setDeleteTarget(null)}
-              className="border-zinc-700 text-zinc-300 hover:bg-zinc-800"
-            >
+          <DialogFooter className="gap-2">
+            <Button variant="outline" size="sm" onClick={() => setDeleteTarget(null)}
+              className="border-zinc-700 text-zinc-300 hover:bg-zinc-800">
               Cancel
             </Button>
-            <Button
-              size="sm"
-              onClick={handleDelete}
-              disabled={isPending}
-              className="bg-red-600 hover:bg-red-700 text-white min-w-[100px]"
-            >
+            <Button size="sm" onClick={handleDelete} disabled={isPending}
+              className="bg-red-600 hover:bg-red-700 text-white min-w-[100px]">
               {isPending ? "Deleting..." : "Delete Artist"}
             </Button>
           </DialogFooter>
