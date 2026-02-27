@@ -6,49 +6,64 @@ import { Separator } from "@/components/ui/separator";
 import SongTableClient from "@/components/admin/songs/SongTableClient";
 import type { Tables } from "@/lib/types";
 
-// ── Types ──────────────────────────────────────────────────
+type Role = "admin" | "author";
+
 type SongRow = Pick<
   Tables<"songs">,
   "id" | "title" | "slug" | "cover_image" | "language" |
-  "is_published" | "duration_sec" | "view_count" | "created_at"
+  "is_published" | "duration_sec" | "view_count" | "created_at" | "status" // ← tambah status
 > & {
-  artists: Pick<Tables<"artists">, "id" | "name" | "slug"> | null;
-  albums:  Pick<Tables<"albums">,  "id" | "title" | "slug"> | null;
+  artists:   Pick<Tables<"artists">, "id" | "name" | "slug"> | null;
+  albums:    Pick<Tables<"albums">,  "id" | "title" | "slug"> | null;
   song_tags: { tags: Pick<Tables<"tags">, "id" | "name" | "color"> | null }[];
 };
 
-// ── Data — query langsung Supabase (bukan /api/songs) karena butuh semua data termasuk unpublished ──
-async function getSongs(): Promise<SongRow[]> {
+async function getSongs(role: Role, userId: string): Promise<SongRow[]> {
   const supabase = await createClient();
-  const { data, error } = await supabase
+
+  const query = supabase
     .from("songs")
     .select(`
       id, title, slug, cover_image, language,
-      is_published, duration_sec, view_count, created_at,
+      is_published, duration_sec, view_count, created_at, status,
       artists ( id, name, slug ),
       albums  ( id, title, slug ),
       song_tags ( tags ( id, name, color ) )
     `)
     .order("created_at", { ascending: false });
 
+  const { data, error } = role === "admin"
+    ? await query
+    : await query.eq("created_by", userId);
+
   if (error) { console.error("getSongs:", error.message); return []; }
   return (data ?? []) as SongRow[];
 }
 
 export default async function SongsPage() {
-  const songs          = await getSongs();
-  const publishedCount = songs.filter((s) => s.is_published).length;
-  const draftCount     = songs.length - publishedCount;
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const { data: profileData } = await supabase
+    .from("profiles").select("role").eq("id", user.id).single();
+  const role = ((profileData as { role: Role } | null)?.role ?? "author") as Role;
+
+  const songs          = await getSongs(role, user.id);
+  const publishedCount = songs.filter((s) => s.status === "published").length;
+  const pendingCount   = songs.filter((s) => s.status === "pending").length;
+  const draftCount     = songs.filter((s) => s.status === "draft").length;
+  const rejectedCount  = songs.filter((s) => s.status === "rejected").length;
 
   return (
     <div className="max-w-6xl mx-auto space-y-5">
-
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-zinc-100 font-serif">Songs</h1>
+          <h1 className="text-xl font-bold text-zinc-100 font-serif">
+            {role === "admin" ? "Songs" : "My Songs"}
+          </h1>
           <p className="text-sm text-zinc-500 mt-0.5">
-            {songs.length} total · {publishedCount} published · {draftCount} draft
+            {songs.length} total · {publishedCount} published · {pendingCount} pending · {draftCount} draft
           </p>
         </div>
         <Button asChild size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white h-8 text-xs">
@@ -56,12 +71,13 @@ export default async function SongsPage() {
         </Button>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-3">
+      {/* Stat Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: "Total Songs", value: songs.length,     color: "text-zinc-200" },
-          { label: "Published",   value: publishedCount,   color: "text-emerald-400" },
-          { label: "Draft",       value: draftCount,       color: "text-zinc-500" },
+          { label: "Published", value: publishedCount, color: "text-emerald-400" },
+          { label: "Pending",   value: pendingCount,   color: "text-amber-400" },
+          { label: "Draft",     value: draftCount,     color: "text-zinc-400" },
+          { label: "Rejected",  value: rejectedCount,  color: "text-red-400" },
         ].map((s) => (
           <div key={s.label} className="bg-zinc-900/60 border border-zinc-800/60 rounded-lg px-4 py-3">
             <p className={`text-2xl font-bold font-serif ${s.color}`}>{s.value}</p>
@@ -72,10 +88,11 @@ export default async function SongsPage() {
 
       <Separator className="bg-zinc-800" />
 
-      {/* Table */}
       <Card className="bg-zinc-900 border-zinc-800">
         <CardHeader className="px-5 py-4">
-          <CardTitle className="text-sm font-semibold text-zinc-200 font-serif">All Songs</CardTitle>
+          <CardTitle className="text-sm font-semibold text-zinc-200 font-serif">
+            {role === "admin" ? "All Songs" : "My Songs"}
+          </CardTitle>
           <CardDescription className="text-zinc-500 text-xs">
             Search, filter, edit, or delete songs
           </CardDescription>

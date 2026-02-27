@@ -6,30 +6,33 @@ import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 
+type Role = "admin" | "author";
+
 const navGroups = [
   {
     label: "Content",
     items: [
-      { href: "/dashboard",           label: "Overview",       icon: "▣" },
-      { href: "/dashboard/songs",     label: "Songs",          icon: "♫" },
-      { href: "/dashboard/analyses",  label: "Lyric Analyses", icon: "✦" },
+      { href: "/dashboard",          label: "Overview",       icon: "▣" },
+      { href: "/dashboard/songs",    label: "Songs",          icon: "♫" },
+      { href: "/dashboard/analyses", label: "Lyric Analyses", icon: "✦" },
     ],
   },
   {
     label: "Catalogue",
     items: [
-      { href: "/dashboard/artists",   label: "Artists",        icon: "♪" },
-      { href: "/dashboard/albums",    label: "Albums",         icon: "◎" },
-      { href: "/dashboard/tags",      label: "Tags",           icon: "◇" },
+      { href: "/dashboard/artists",  label: "Artists",        icon: "♪" },
+      { href: "/dashboard/albums",   label: "Albums",         icon: "◎" },
+      { href: "/dashboard/tags",     label: "Tags",           icon: "◇" },
     ],
   },
 ];
 
 interface SidebarProps {
+  role: Role;           // ← tambah ini
   onNavigate?: () => void;
 }
 
-export default function Sidebar({ onNavigate }: SidebarProps) {
+export default function Sidebar({ role, onNavigate }: SidebarProps) {
   const pathname = usePathname();
 
   return (
@@ -42,11 +45,17 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
             Lyric<span className="text-indigo-400 italic">Venture</span>
           </span>
         </Link>
+        {/* Badge berubah sesuai role */}
         <Badge
           variant="secondary"
-          className="text-[9px] bg-zinc-800 text-zinc-400 border-zinc-700 px-1.5 py-0 h-4"
+          className={cn(
+            "text-[9px] px-1.5 py-0 h-4 border",
+            role === "admin"
+              ? "bg-zinc-800 text-zinc-400 border-zinc-700"
+              : "bg-indigo-950 text-indigo-400 border-indigo-800"
+          )}
         >
-          Admin
+          {role === "admin" ? "Admin" : "Author"}
         </Badge>
       </div>
 
@@ -59,7 +68,10 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
             </p>
             <div className="space-y-0.5">
               {group.items.map((item) => {
-                const isActive = pathname === item.href;
+                const isActive =
+                  item.href === "/dashboard"
+                    ? pathname === "/dashboard"       // exact match Overview
+                    : pathname.startsWith(item.href); // prefix match sub-pages
                 return (
                   <Link
                     key={item.href}

@@ -10,11 +10,9 @@ export default async function AdminLayout({
 }) {
   const supabase = await createClient();
 
-  // Cek session
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  // Cek role dari tabel profiles — cast eksplisit untuk fix "never"
   const { data } = await supabase
     .from("profiles")
     .select("role")
@@ -23,10 +21,14 @@ export default async function AdminLayout({
 
   const profile = data as Pick<Tables<"profiles">, "role"> | null;
 
-  // Hanya admin & author yang boleh masuk dashboard
+  // Hanya admin & author yang boleh masuk
   if (!profile || (profile.role !== "admin" && profile.role !== "author")) {
     redirect("/");
   }
 
-  return <AdminShell>{children}</AdminShell>;
+  return (
+    <AdminShell role={profile.role}>
+      {children}
+    </AdminShell>
+  );
 }

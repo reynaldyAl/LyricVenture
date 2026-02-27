@@ -1,27 +1,29 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import AnalysisTableClient from "@/components/admin/analyses/AnalysisTableClient";
 import type { Tables } from "@/lib/types";
 
+type Role = "admin" | "author";
+
 type AnalysisRow = Pick<
   Tables<"lyric_analyses">,
-  "id" | "theme" | "is_published" | "created_at"
+  "id" | "theme" | "is_published" | "created_at" | "status"  // ← tambah status
 > & {
   songs: (Pick<Tables<"songs">, "id" | "title" | "slug" | "cover_image"> & {
     artists: Pick<Tables<"artists">, "id" | "name" | "slug"> | null;
   }) | null;
 };
 
-async function getAnalyses(): Promise<AnalysisRow[]> {
+async function getAnalyses(role: Role, userId: string): Promise<AnalysisRow[]> {
   const supabase = await createClient();
-  const { data, error } = await supabase
+
+  const query = supabase
     .from("lyric_analyses")
     .select(`
-      id, theme, is_published, created_at,
+      id, theme, is_published, created_at, status,
       songs (
         id, title, slug, cover_image,
         artists ( id, name, slug )
@@ -29,41 +31,38 @@ async function getAnalyses(): Promise<AnalysisRow[]> {
     `)
     .order("created_at", { ascending: false });
 
+  const { data, error } = role === "admin"
+    ? await query
+    : await query.eq("author_id", userId);  // lyric_analyses pakai author_id
+
   if (error) { console.error("getAnalyses:", error.message); return []; }
   return (data ?? []) as AnalysisRow[];
 }
 
-// Songs yang belum punya analysis → untuk tombol "New Analysis"
-async function getSongsWithoutAnalysis() {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("songs")
-    .select("id, title, slug, artists ( name )")
-    .not("id", "in",
-      supabase.from("lyric_analyses").select("song_id")
-    )
-    .eq("is_published", true)
-    .order("title");
-  return (data ?? []) as {
-    id: string; title: string; slug: string;
-    artists: { name: string } | null;
-  }[];
-}
-
 export default async function AnalysesPage() {
-  const [analyses] = await Promise.all([getAnalyses()]);
-  const publishedCount = analyses.filter((a) => a.is_published).length;
-  const draftCount     = analyses.length - publishedCount;
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const { data: profileData } = await supabase
+    .from("profiles").select("role").eq("id", user.id).single();
+  const role = ((profileData as { role: Role } | null)?.role ?? "author") as Role;
+
+  const analyses       = await getAnalyses(role, user.id);
+  const publishedCount = analyses.filter((a) => a.status === "published").length;
+  const pendingCount   = analyses.filter((a) => a.status === "pending").length;
+  const draftCount     = analyses.filter((a) => a.status === "draft").length;
+  const rejectedCount  = analyses.filter((a) => a.status === "rejected").length;
 
   return (
     <div className="max-w-6xl mx-auto space-y-5">
-
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-zinc-100 font-serif">Lyric Analyses</h1>
+          <h1 className="text-xl font-bold text-zinc-100 font-serif">
+            {role === "admin" ? "Lyric Analyses" : "My Analyses"}
+          </h1>
           <p className="text-sm text-zinc-500 mt-0.5">
-            {analyses.length} total · {publishedCount} published · {draftCount} draft
+            {analyses.length} total · {publishedCount} published · {pendingCount} pending · {draftCount} draft
           </p>
         </div>
         <Button asChild size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white h-8 text-xs">
@@ -71,12 +70,13 @@ export default async function AnalysesPage() {
         </Button>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-3">
+      {/* Status stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: "Total",     value: analyses.length, color: "text-zinc-200" },
-          { label: "Published", value: publishedCount,  color: "text-emerald-400" },
-          { label: "Draft",     value: draftCount,      color: "text-zinc-500" },
+          { label: "Published", value: publishedCount, color: "text-emerald-400" },
+          { label: "Pending",   value: pendingCount,   color: "text-amber-400" },
+          { label: "Draft",     value: draftCount,     color: "text-zinc-400" },
+          { label: "Rejected",  value: rejectedCount,  color: "text-red-400" },
         ].map((s) => (
           <div key={s.label} className="bg-zinc-900/60 border border-zinc-800/60 rounded-lg px-4 py-3">
             <p className={`text-2xl font-bold font-serif ${s.color}`}>{s.value}</p>
@@ -89,7 +89,9 @@ export default async function AnalysesPage() {
 
       <Card className="bg-zinc-900 border-zinc-800">
         <CardHeader className="px-5 py-4">
-          <CardTitle className="text-sm font-semibold text-zinc-200 font-serif">All Analyses</CardTitle>
+          <CardTitle className="text-sm font-semibold text-zinc-200 font-serif">
+            {role === "admin" ? "All Analyses" : "My Analyses"}
+          </CardTitle>
           <CardDescription className="text-zinc-500 text-xs">
             Click an analysis to edit its content, sections, and highlights
           </CardDescription>
