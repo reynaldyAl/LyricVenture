@@ -114,7 +114,7 @@ export default async function AlbumsPage() {
         </CardHeader>
         <Separator className="bg-zinc-800" />
         <CardContent className="p-0">
-          <AlbumTableClient albums={albums} />
+          <AlbumTableClient albums={albums} role={role} />
         </CardContent>
       </Card>
     </div>

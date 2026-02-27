@@ -92,7 +92,7 @@ export default async function ArtistsPage() {
         </CardHeader>
         <Separator className="bg-zinc-800" />
         <CardContent className="p-0">
-          <ArtistTableClient artists={artists} />
+          <ArtistTableClient artists={artists} role={role} />
         </CardContent>
       </Card>
     </div>

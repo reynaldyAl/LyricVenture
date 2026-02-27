@@ -98,7 +98,7 @@ export default async function AnalysesPage() {
         </CardHeader>
         <Separator className="bg-zinc-800" />
         <CardContent className="p-0">
-          <AnalysisTableClient analyses={analyses} />
+          <AnalysisTableClient analyses={analyses} role={role} />
         </CardContent>
       </Card>
     </div>
