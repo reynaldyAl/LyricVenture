@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { moderateContent } from "@/app/(admin)/dashboard/actions/moderation";
@@ -18,9 +19,9 @@ export default function ModerationButtons({
   table, id, status, revalidate,
 }: ModerationButtonsProps) {
   const { toast } = useToast();
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
-  // Hanya tampil kalau pending
   if (status !== "pending") return null;
 
   function handleModerate(action: "published" | "rejected") {
@@ -35,6 +36,7 @@ export default function ModerationButtons({
             ? "Content has been published."
             : "Content has been rejected.",
         });
+        router.refresh();
       }
     });
   }
@@ -47,7 +49,7 @@ export default function ModerationButtons({
         onClick={() => handleModerate("published")}
         className="h-7 text-xs bg-emerald-700 hover:bg-emerald-600 text-white px-2"
       >
-        ✓ Approve
+        ✓
       </Button>
       <Button
         size="sm"
@@ -55,7 +57,7 @@ export default function ModerationButtons({
         onClick={() => handleModerate("rejected")}
         className="h-7 text-xs bg-red-900/60 hover:bg-red-800 text-red-300 px-2"
       >
-        ✗ Reject
+        ✗
       </Button>
     </div>
   );
