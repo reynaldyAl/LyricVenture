@@ -10,7 +10,7 @@ type Role = "admin" | "author";
 
 type AnalysisRow = Pick<
   Tables<"lyric_analyses">,
-  "id" | "theme" | "is_published" | "created_at" | "status"  // ← tambah status
+  "id" | "theme" | "created_at" | "status"  // ✅ hapus is_published
 > & {
   songs: (Pick<Tables<"songs">, "id" | "title" | "slug" | "cover_image"> & {
     artists: Pick<Tables<"artists">, "id" | "name" | "slug"> | null;
@@ -23,17 +23,17 @@ async function getAnalyses(role: Role, userId: string): Promise<AnalysisRow[]> {
   const query = supabase
     .from("lyric_analyses")
     .select(`
-      id, theme, is_published, created_at, status,
+      id, theme, created_at, status,
       songs (
         id, title, slug, cover_image,
         artists ( id, name, slug )
       )
-    `)
+    `)                                        // ✅ hapus is_published dari select
     .order("created_at", { ascending: false });
 
   const { data, error } = role === "admin"
     ? await query
-    : await query.eq("author_id", userId);  // lyric_analyses pakai author_id
+    : await query.eq("author_id", userId);
 
   if (error) { console.error("getAnalyses:", error.message); return []; }
   return (data ?? []) as AnalysisRow[];

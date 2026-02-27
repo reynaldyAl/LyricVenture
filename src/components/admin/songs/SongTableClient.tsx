@@ -21,7 +21,7 @@ import type { Tables } from "@/lib/types";
 type SongRow = Pick<
   Tables<"songs">,
   | "id" | "title" | "slug" | "cover_image" | "language"
-  | "is_published" | "duration_sec" | "view_count"
+  | "duration_sec" | "view_count"
   | "created_at" | "status"
 > & {
   artists:   Pick<Tables<"artists">, "id" | "name" | "slug"> | null;

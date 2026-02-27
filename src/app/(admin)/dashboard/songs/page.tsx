@@ -10,8 +10,8 @@ type Role = "admin" | "author";
 
 type SongRow = Pick<
   Tables<"songs">,
-  "id" | "title" | "slug" | "cover_image" | "language" |
-  "is_published" | "duration_sec" | "view_count" | "created_at" | "status" // ← tambah status
+  | "id" | "title" | "slug" | "cover_image" | "language"
+  | "duration_sec" | "view_count" | "created_at" | "status"  // ✅ hapus is_published
 > & {
   artists:   Pick<Tables<"artists">, "id" | "name" | "slug"> | null;
   albums:    Pick<Tables<"albums">,  "id" | "title" | "slug"> | null;
@@ -25,11 +25,11 @@ async function getSongs(role: Role, userId: string): Promise<SongRow[]> {
     .from("songs")
     .select(`
       id, title, slug, cover_image, language,
-      is_published, duration_sec, view_count, created_at, status,
+      duration_sec, view_count, created_at, status,
       artists ( id, name, slug ),
       albums  ( id, title, slug ),
       song_tags ( tags ( id, name, color ) )
-    `)
+    `)                                          // ✅ hapus is_published dari select
     .order("created_at", { ascending: false });
 
   const { data, error } = role === "admin"

@@ -16,7 +16,7 @@ import type { Tables } from "@/lib/types";
 
 type AnalysisRow = Pick<
   Tables<"lyric_analyses">,
-  "id" | "theme" | "is_published" | "created_at" | "status"
+  "id" | "theme" | "created_at" | "status"
 > & {
   songs: (Pick<Tables<"songs">, "id" | "title" | "slug" | "cover_image"> & {
     artists: Pick<Tables<"artists">, "id" | "name" | "slug"> | null;

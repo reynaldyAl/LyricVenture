@@ -19,7 +19,6 @@ type AnalysisFull = Tables<"lyric_analyses"> & {
 async function getAnalysis(id: string): Promise<AnalysisFull | null> {
   const supabase = await createClient();
 
-  // ✅ Cast ke any dulu — fix "Spread types may only be created from object types"
   const { data, error } = await (supabase as any)
     .from("lyric_analyses")
     .select(`
@@ -35,7 +34,6 @@ async function getAnalysis(id: string): Promise<AnalysisFull | null> {
 
   if (error || !data) return null;
 
-  // Sort sections & highlights by order_index
   const raw = data as AnalysisFull;
 
   const sorted: AnalysisFull = {
@@ -64,6 +62,13 @@ export default async function EditAnalysisPage({
 
   const song = analysis.songs;
 
+  // ✅ Fix: helper untuk status badge
+  const statusStyle =
+    analysis.status === "published" ? "border-emerald-800 bg-emerald-900/30 text-emerald-400"
+    : analysis.status === "pending" ? "border-amber-800 bg-amber-900/30 text-amber-400"
+    : analysis.status === "rejected" ? "border-red-800 bg-red-900/30 text-red-400"
+    : "border-zinc-700 bg-zinc-800 text-zinc-500";
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
 
@@ -81,15 +86,10 @@ export default async function EditAnalysisPage({
             {song?.artists?.name && ` — ${song.artists.name}`}
           </p>
         </div>
-        {/* Published badge */}
-        <span
-          className={`text-[10px] px-2 py-0.5 border ${
-            analysis.is_published
-              ? "border-emerald-800 bg-emerald-900/30 text-emerald-400"
-              : "border-zinc-700 bg-zinc-800 text-zinc-500"
-          }`}
-        >
-          {analysis.is_published ? "Published" : "Draft"}
+
+        {/* ✅ Fix: pakai status bukan is_published */}
+        <span className={`text-[10px] px-2 py-0.5 border capitalize ${statusStyle}`}>
+          {analysis.status ?? "draft"}
         </span>
       </div>
 
