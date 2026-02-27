@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";  // ✅ tambah ini
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -25,6 +26,7 @@ export default function ProfileForm({ profile, userEmail }: ProfileFormProps) {
     username:   profile?.username   ?? "",
     full_name:  profile?.full_name  ?? "",
     avatar_url: profile?.avatar_url ?? "",
+    bio:        profile?.bio        ?? "",  // ✅ tambah bio
   });
 
   const displayName =
@@ -41,6 +43,7 @@ export default function ProfileForm({ profile, userEmail }: ProfileFormProps) {
           username:   form.username   || null,
           full_name:  form.full_name  || null,
           avatar_url: form.avatar_url || null,
+          bio:        form.bio        || null,  // ✅ tambah bio
         }),
       });
 
@@ -69,9 +72,7 @@ export default function ProfileForm({ profile, userEmail }: ProfileFormProps) {
             </AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-zinc-100 truncate">
-              {displayName}
-            </p>
+            <p className="text-sm font-medium text-zinc-100 truncate">{displayName}</p>
             <p className="text-xs text-zinc-500 truncate">{userEmail}</p>
             <div className="mt-1.5">
               <Badge
@@ -137,6 +138,21 @@ export default function ProfileForm({ profile, userEmail }: ProfileFormProps) {
             />
             <p className="text-[10px] text-zinc-600">
               Paste URL gambar. Google avatar terisi otomatis saat login OAuth.
+            </p>
+          </div>
+
+          {/* ✅ Bio — field baru */}
+          <div className="space-y-1.5">
+            <Label className="text-xs text-zinc-400">Bio</Label>
+            <Textarea
+              value={form.bio}
+              onChange={(e) => setForm((f) => ({ ...f, bio: e.target.value }))}
+              placeholder="Tell something about yourself..."
+              rows={3}
+              className="bg-zinc-800 border-zinc-700 text-zinc-100 placeholder:text-zinc-600 text-sm resize-none"
+            />
+            <p className="text-[10px] text-zinc-600">
+              Short description shown on your public author profile.
             </p>
           </div>
         </CardContent>

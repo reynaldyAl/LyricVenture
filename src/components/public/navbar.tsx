@@ -30,7 +30,6 @@ export default function Navbar() {
       setUser(data.user ?? null);
       setLoading(false);
     });
-
     // Listen login/logout realtime
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
@@ -56,7 +55,6 @@ export default function Navbar() {
     router.push("/");
     router.refresh();
   }
-
   // Display info
   const avatarUrl   = user?.user_metadata?.avatar_url as string | undefined;
   const displayName =
@@ -113,7 +111,6 @@ export default function Navbar() {
           {/* ── Desktop Auth ── */}
           <div className="hidden md:flex items-center gap-3">
             {loading ? (
-              /* Skeleton loading */
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 rounded-full bg-[#E2E0DB] animate-pulse" />
                 <div className="w-16 h-4 bg-[#E2E0DB] animate-pulse" />
@@ -121,8 +118,11 @@ export default function Navbar() {
             ) : user ? (
               /* ── Logged IN ── */
               <div className="flex items-center gap-3">
-                {/* Avatar + name */}
-                <div className="flex items-center gap-2">
+                {/* ✅ Avatar + name → /dashboard/profile */}
+                <Link
+                  href="/dashboard/profile"
+                  className="flex items-center gap-2 hover:opacity-75 transition-opacity"
+                >
                   <div
                     className="w-7 h-7 rounded-full overflow-hidden shrink-0 flex items-center justify-center text-xs font-bold"
                     style={{ background: "#1A1917", color: "#F4F3F0" }}
@@ -135,8 +135,7 @@ export default function Navbar() {
                   <span className="text-sm text-[#5A5651] max-w-[100px] truncate">
                     {displayName as string}
                   </span>
-                </div>
-
+                </Link>
                 {/* Sign out */}
                 <button
                   onClick={handleSignOut}
@@ -146,7 +145,6 @@ export default function Navbar() {
                 </button>
               </div>
             ) : (
-              /* ── Logged OUT ── */
               <>
                 <Link
                   href="/login"
@@ -174,16 +172,19 @@ export default function Navbar() {
                 Get Started
               </Link>
             )}
+            {/* ✅ Mobile avatar → /dashboard/profile */}
             {!loading && user && (
-              <div
-                className="w-7 h-7 rounded-full overflow-hidden shrink-0 flex items-center justify-center text-xs font-bold"
-                style={{ background: "#1A1917", color: "#F4F3F0" }}
-              >
-                {avatarUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={avatarUrl} alt={displayName as string} className="w-full h-full object-cover" />
-                ) : initial}
-              </div>
+              <Link href="/dashboard/profile">
+                <div
+                  className="w-7 h-7 rounded-full overflow-hidden shrink-0 flex items-center justify-center text-xs font-bold"
+                  style={{ background: "#1A1917", color: "#F4F3F0" }}
+                >
+                  {avatarUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={avatarUrl} alt={displayName as string} className="w-full h-full object-cover" />
+                  ) : initial}
+                </div>
+              </Link>
             )}
 
             <button
@@ -222,7 +223,6 @@ export default function Navbar() {
         }}
       >
         <div className="container mx-auto px-5 py-6 max-w-5xl">
-
           {/* Nav links */}
           <nav className="space-y-1 mb-6">
             {navLinks.map((link) => (
@@ -243,16 +243,17 @@ export default function Navbar() {
               </Link>
             ))}
           </nav>
-
           {/* Auth section mobile */}
           <div className="flex flex-col gap-2">
             {loading ? (
               <div className="h-10 bg-[#E2E0DB] animate-pulse" />
             ) : user ? (
-              /* Logged in mobile */
               <>
-                <div
-                  className="flex items-center gap-3 px-3 py-3 border border-[#E2E0DB]"
+                {/* ✅ Mobile user card → /dashboard/profile */}
+                <Link
+                  href="/dashboard/profile"
+                  onClick={() => setOpen(false)}
+                  className="flex items-center gap-3 px-3 py-3 border border-[#E2E0DB] hover:border-[#3B5BDB] transition-colors"
                   style={{ background: "#FFFFFF" }}
                 >
                   <div
@@ -264,11 +265,13 @@ export default function Navbar() {
                       <img src={avatarUrl} alt={displayName as string} className="w-full h-full object-cover" />
                     ) : initial}
                   </div>
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-[#1A1917] truncate">{displayName as string}</p>
                     <p className="text-[10px] text-[#8A8680] truncate">{user.email}</p>
                   </div>
-                </div>
+                  <span className="text-[10px] text-[#3B5BDB] shrink-0">Dashboard →</span>
+                </Link>
+                {/* Sign out */}
                 <button
                   onClick={handleSignOut}
                   className="w-full text-center py-2.5 text-sm border border-[#E2E0DB] text-[#8A8680] hover:border-[#1A1917] hover:text-[#1A1917] transition-colors"
@@ -277,7 +280,6 @@ export default function Navbar() {
                 </button>
               </>
             ) : (
-              /* Logged out mobile */
               <>
                 <Link
                   href="/login"
