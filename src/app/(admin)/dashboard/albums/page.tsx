@@ -6,49 +6,62 @@ import { Separator } from "@/components/ui/separator";
 import AlbumTableClient from "@/components/admin/albums/AlbumTableClient";
 import type { Tables } from "@/lib/types";
 
+type Role = "admin" | "author";
+
 type AlbumRow = Pick<
   Tables<"albums">,
-  "id" | "title" | "slug" | "cover_image" | "release_date" | "album_type" | "total_tracks" | "created_at"
+  | "id" | "title" | "slug" | "cover_image"
+  | "release_date" | "album_type" | "total_tracks"
+  | "created_at" | "status"  // ← tambah status
 > & {
   artists: Pick<Tables<"artists">, "id" | "name" | "slug"> | null;
 };
 
-async function getAlbums(): Promise<AlbumRow[]> {
+async function getAlbums(role: Role, userId: string): Promise<AlbumRow[]> {
   const supabase = await createClient();
-  const { data, error } = await supabase
+
+  const query = supabase
     .from("albums")
-    .select("id, title, slug, cover_image, release_date, album_type, total_tracks, created_at, artists ( id, name, slug )")
+    .select("id, title, slug, cover_image, release_date, album_type, total_tracks, created_at, status, artists ( id, name, slug )") // ← tambah status
     .order("release_date", { ascending: false });
+
+  const { data, error } = role === "admin"
+    ? await query
+    : await query.eq("created_by", userId);
 
   if (error) { console.error("getAlbums error:", error.message); return []; }
   return (data ?? []) as AlbumRow[];
 }
 
-async function getAlbumStats() {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("albums")
-    .select("album_type") as { data: { album_type: string }[] | null };
-
-  const all = data ?? [];
-  return {
-    total:       all.length,
-    albums:      all.filter((a) => a.album_type === "album").length,
-    eps:         all.filter((a) => a.album_type === "ep").length,
-    singles:     all.filter((a) => a.album_type === "single").length,
-  };
-}
-
 export default async function AlbumsPage() {
-  const [albums, stats] = await Promise.all([getAlbums(), getAlbumStats()]);
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const { data: profileData } = await supabase
+    .from("profiles").select("role").eq("id", user.id).single();
+  const role = ((profileData as { role: Role } | null)?.role ?? "author") as Role;
+
+  const albums = await getAlbums(role, user.id);
+
+  const stats = {
+    total:     albums.length,
+    albums:    albums.filter((a) => a.album_type === "album").length,
+    eps:       albums.filter((a) => a.album_type === "ep").length,
+    singles:   albums.filter((a) => a.album_type === "single").length,
+    published: albums.filter((a) => a.status === "published").length,
+    pending:   albums.filter((a) => a.status === "pending").length,
+    draft:     albums.filter((a) => a.status === "draft").length,
+    rejected:  albums.filter((a) => a.status === "rejected").length,
+  };
 
   return (
     <div className="max-w-6xl mx-auto space-y-5">
-
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-zinc-100 font-serif">Albums</h1>
+          <h1 className="text-xl font-bold text-zinc-100 font-serif">
+            {role === "admin" ? "Albums" : "My Albums"}
+          </h1>
           <p className="text-sm text-zinc-500 mt-0.5">
             {stats.total} total · {stats.albums} albums · {stats.eps} EPs · {stats.singles} singles
           </p>
@@ -58,7 +71,7 @@ export default async function AlbumsPage() {
         </Button>
       </div>
 
-      {/* Stats strip */}
+      {/* Type stats */}
       <div className="grid grid-cols-4 gap-3">
         {[
           { label: "Total",   value: stats.total,   color: "text-zinc-200" },
@@ -73,13 +86,31 @@ export default async function AlbumsPage() {
         ))}
       </div>
 
+      {/* Status stats */}
+      <div className="grid grid-cols-4 gap-3">
+        {[
+          { label: "Published", value: stats.published, color: "text-emerald-400" },
+          { label: "Pending",   value: stats.pending,   color: "text-amber-400" },
+          { label: "Draft",     value: stats.draft,     color: "text-zinc-400" },
+          { label: "Rejected",  value: stats.rejected,  color: "text-red-400" },
+        ].map((s) => (
+          <div key={s.label} className="bg-zinc-900/60 border border-zinc-800/60 rounded-lg px-4 py-3">
+            <p className={`text-2xl font-bold font-serif ${s.color}`}>{s.value}</p>
+            <p className="text-[11px] text-zinc-500 mt-0.5">{s.label}</p>
+          </div>
+        ))}
+      </div>
+
       <Separator className="bg-zinc-800" />
 
-      {/* Table */}
       <Card className="bg-zinc-900 border-zinc-800">
         <CardHeader className="px-5 py-4">
-          <CardTitle className="text-sm font-semibold text-zinc-200 font-serif">All Albums</CardTitle>
-          <CardDescription className="text-zinc-500 text-xs">Search, edit, or delete albums</CardDescription>
+          <CardTitle className="text-sm font-semibold text-zinc-200 font-serif">
+            {role === "admin" ? "All Albums" : "My Albums"}
+          </CardTitle>
+          <CardDescription className="text-zinc-500 text-xs">
+            Search, edit, or delete albums
+          </CardDescription>
         </CardHeader>
         <Separator className="bg-zinc-800" />
         <CardContent className="p-0">

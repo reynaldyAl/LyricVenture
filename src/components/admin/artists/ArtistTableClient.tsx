@@ -110,7 +110,7 @@ export default function ArtistTableClient({ artists }: Props) {
                   {/* Genre */}
                   <td className="px-4 py-3 hidden lg:table-cell">
                     <div className="flex flex-wrap gap-1">
-                      {(artist.genre ?? []).slice(0, 2).map((g) => (
+                      {(artist.genre ?? []).slice(0, 2).map((g: string) => (
                         <Badge
                           key={g}
                           variant="secondary"
