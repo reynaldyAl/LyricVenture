@@ -12,7 +12,7 @@ type ArtistRow = Pick<
   Tables<"artists">,
   | "id" | "name" | "slug" | "origin" | "genre"
   | "is_active" | "formed_year" | "cover_image"
-  | "created_at" | "status"  // ← tambah status
+  | "created_at" | "status"
 >;
 
 async function getArtists(role: Role, userId: string): Promise<ArtistRow[]> {
@@ -20,8 +20,9 @@ async function getArtists(role: Role, userId: string): Promise<ArtistRow[]> {
 
   const query = supabase
     .from("artists")
-    .select("id, name, slug, origin, genre, is_active, formed_year, cover_image, created_at, status") // ← tambah status
-    .order("name", { ascending: true });
+    .select("id, name, slug, origin, genre, is_active, formed_year, cover_image, created_at, status")
+    .order("name", { ascending: true })
+    .limit(100); // ✅ tambah limit
 
   const { data, error } = role === "admin"
     ? await query
@@ -36,15 +37,17 @@ export default async function ArtistsPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
 
+  // ✅ Fetch profile dulu untuk dapat role
   const { data: profileData } = await supabase
     .from("profiles").select("role").eq("id", user.id).single();
   const role = ((profileData as { role: Role } | null)?.role ?? "author") as Role;
 
+  // ✅ Fetch artists setelah role diketahui
   const artists        = await getArtists(role, user.id);
   const activeCount    = artists.filter((a) => a.is_active).length;
   const inactiveCount  = artists.length - activeCount;
-  const pendingCount   = artists.filter((a) => a.status === "pending").length;
   const publishedCount = artists.filter((a) => a.status === "published").length;
+  const pendingCount   = artists.filter((a) => a.status === "pending").length;
   const draftCount     = artists.filter((a) => a.status === "draft").length;
   const rejectedCount  = artists.filter((a) => a.status === "rejected").length;
 

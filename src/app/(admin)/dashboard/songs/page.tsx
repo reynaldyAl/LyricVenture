@@ -11,17 +11,25 @@ type Role = "admin" | "author";
 type SongRow = Pick<
   Tables<"songs">,
   | "id" | "title" | "slug" | "cover_image" | "language"
-  | "duration_sec" | "view_count" | "created_at" | "status"  // ✅ hapus is_published
+  | "duration_sec" | "view_count" | "created_at" | "status"
 > & {
   artists:   Pick<Tables<"artists">, "id" | "name" | "slug"> | null;
   albums:    Pick<Tables<"albums">,  "id" | "title" | "slug"> | null;
   song_tags: { tags: Pick<Tables<"tags">, "id" | "name" | "color"> | null }[];
 };
 
-async function getSongs(role: Role, userId: string): Promise<SongRow[]> {
+export default async function SongsPage() {
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
 
-  const query = supabase
+  // ✅ Fetch profile dulu untuk dapat role
+  const { data: profileData } = await supabase
+    .from("profiles").select("role").eq("id", user.id).single();
+  const role = ((profileData as { role: Role } | null)?.role ?? "author") as Role;
+
+  // ✅ Query dengan limit
+  const baseQuery = supabase
     .from("songs")
     .select(`
       id, title, slug, cover_image, language,
@@ -29,27 +37,17 @@ async function getSongs(role: Role, userId: string): Promise<SongRow[]> {
       artists ( id, name, slug ),
       albums  ( id, title, slug ),
       song_tags ( tags ( id, name, color ) )
-    `)                                          // ✅ hapus is_published dari select
-    .order("created_at", { ascending: false });
+    `)
+    .order("created_at", { ascending: false })
+    .limit(100);
 
   const { data, error } = role === "admin"
-    ? await query
-    : await query.eq("created_by", userId);
+    ? await baseQuery
+    : await baseQuery.eq("created_by", user.id);
 
-  if (error) { console.error("getSongs:", error.message); return []; }
-  return (data ?? []) as SongRow[];
-}
+  if (error) console.error("getSongs:", error.message);
+  const songs = (data ?? []) as SongRow[];
 
-export default async function SongsPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
-
-  const { data: profileData } = await supabase
-    .from("profiles").select("role").eq("id", user.id).single();
-  const role = ((profileData as { role: Role } | null)?.role ?? "author") as Role;
-
-  const songs          = await getSongs(role, user.id);
   const publishedCount = songs.filter((s) => s.status === "published").length;
   const pendingCount   = songs.filter((s) => s.status === "pending").length;
   const draftCount     = songs.filter((s) => s.status === "draft").length;
@@ -71,7 +69,6 @@ export default async function SongsPage() {
         </Button>
       </div>
 
-      {/* Stat Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
           { label: "Published", value: publishedCount, color: "text-emerald-400" },

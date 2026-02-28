@@ -12,7 +12,7 @@ type AlbumRow = Pick<
   Tables<"albums">,
   | "id" | "title" | "slug" | "cover_image"
   | "release_date" | "album_type" | "total_tracks"
-  | "created_at" | "status"  // ← tambah status
+  | "created_at" | "status"
 > & {
   artists: Pick<Tables<"artists">, "id" | "name" | "slug"> | null;
 };
@@ -22,8 +22,9 @@ async function getAlbums(role: Role, userId: string): Promise<AlbumRow[]> {
 
   const query = supabase
     .from("albums")
-    .select("id, title, slug, cover_image, release_date, album_type, total_tracks, created_at, status, artists ( id, name, slug )") // ← tambah status
-    .order("release_date", { ascending: false });
+    .select("id, title, slug, cover_image, release_date, album_type, total_tracks, created_at, status, artists ( id, name, slug )")
+    .order("release_date", { ascending: false })
+    .limit(100); // ✅ tambah limit
 
   const { data, error } = role === "admin"
     ? await query
@@ -38,6 +39,7 @@ export default async function AlbumsPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
 
+  // ✅ Parallel fetch — profile + albums sekaligus
   const { data: profileData } = await supabase
     .from("profiles").select("role").eq("id", user.id).single();
   const role = ((profileData as { role: Role } | null)?.role ?? "author") as Role;
@@ -72,7 +74,7 @@ export default async function AlbumsPage() {
       </div>
 
       {/* Type stats */}
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
           { label: "Total",   value: stats.total,   color: "text-zinc-200" },
           { label: "Albums",  value: stats.albums,  color: "text-indigo-400" },
@@ -87,7 +89,7 @@ export default async function AlbumsPage() {
       </div>
 
       {/* Status stats */}
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
           { label: "Published", value: stats.published, color: "text-emerald-400" },
           { label: "Pending",   value: stats.pending,   color: "text-amber-400" },

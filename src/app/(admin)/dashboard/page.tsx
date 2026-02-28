@@ -24,7 +24,6 @@ async function getDashboardData(role: Role, userId: string) {
     { data: recentAnalyses },
     { data: recentArtists },
   ] = await Promise.all([
-    // Total counts
     role === "admin"
       ? supabase.from("songs").select("*", { count: "exact", head: true })
       : supabase.from("songs").select("*", { count: "exact", head: true }).eq("created_by", userId),
@@ -39,18 +38,16 @@ async function getDashboardData(role: Role, userId: string) {
 
     role === "admin"
       ? supabase.from("lyric_analyses").select("*", { count: "exact", head: true })
-      : supabase.from("lyric_analyses").select("*", { count: "exact", head: true }).eq("author_id", userId), // ✅ fix: author_id
+      : supabase.from("lyric_analyses").select("*", { count: "exact", head: true }).eq("author_id", userId),
 
-    // Published counts — pakai status bukan is_published
     role === "admin"
-      ? supabase.from("songs").select("*", { count: "exact", head: true }).eq("status", "published") // ✅ fix
+      ? supabase.from("songs").select("*", { count: "exact", head: true }).eq("status", "published")
       : supabase.from("songs").select("*", { count: "exact", head: true }).eq("status", "published").eq("created_by", userId),
 
     role === "admin"
-      ? supabase.from("lyric_analyses").select("*", { count: "exact", head: true }).eq("status", "published") // ✅ fix
-      : supabase.from("lyric_analyses").select("*", { count: "exact", head: true }).eq("status", "published").eq("author_id", userId), // ✅ fix
+      ? supabase.from("lyric_analyses").select("*", { count: "exact", head: true }).eq("status", "published")
+      : supabase.from("lyric_analyses").select("*", { count: "exact", head: true }).eq("status", "published").eq("author_id", userId),
 
-    // Pending counts — baru
     role === "admin"
       ? supabase.from("songs").select("*", { count: "exact", head: true }).eq("status", "pending")
       : supabase.from("songs").select("*", { count: "exact", head: true }).eq("status", "pending").eq("created_by", userId),
@@ -59,17 +56,14 @@ async function getDashboardData(role: Role, userId: string) {
       ? supabase.from("lyric_analyses").select("*", { count: "exact", head: true }).eq("status", "pending")
       : supabase.from("lyric_analyses").select("*", { count: "exact", head: true }).eq("status", "pending").eq("author_id", userId),
 
-    // Recent songs
     role === "admin"
-      ? supabase.from("songs").select("id, title, slug, status, created_at, artists ( name )").order("created_at", { ascending: false }).limit(8) // ✅ fix: status
+      ? supabase.from("songs").select("id, title, slug, status, created_at, artists ( name )").order("created_at", { ascending: false }).limit(8)
       : supabase.from("songs").select("id, title, slug, status, created_at, artists ( name )").eq("created_by", userId).order("created_at", { ascending: false }).limit(8),
 
-    // Recent analyses
     role === "admin"
-      ? supabase.from("lyric_analyses").select("id, theme, status, created_at, songs ( title, slug )").order("created_at", { ascending: false }).limit(8) // ✅ fix: status
-      : supabase.from("lyric_analyses").select("id, theme, status, created_at, songs ( title, slug )").eq("author_id", userId).order("created_at", { ascending: false }).limit(8), // ✅ fix: author_id
+      ? supabase.from("lyric_analyses").select("id, theme, status, created_at, songs ( title, slug )").order("created_at", { ascending: false }).limit(8)
+      : supabase.from("lyric_analyses").select("id, theme, status, created_at, songs ( title, slug )").eq("author_id", userId).order("created_at", { ascending: false }).limit(8),
 
-    // Recent artists
     role === "admin"
       ? supabase.from("artists").select("id, name, slug, origin, is_active, created_at").order("created_at", { ascending: false }).limit(6)
       : supabase.from("artists").select("id, name, slug, origin, is_active, created_at").eq("created_by", userId).order("created_at", { ascending: false }).limit(6),
@@ -131,7 +125,7 @@ export default async function DashboardPage() {
   const { counts, recentSongs, recentAnalyses, recentArtists } =
     await getDashboardData(role, user.id);
 
-  const draftSongs    = counts.songs    - counts.publishedSongs    - counts.pendingSongs;
+  const draftSongs    = counts.songs    - counts.publishedSongs - counts.pendingSongs;
   const draftAnalyses = counts.analyses - counts.publishedAnalyses - counts.pendingAnalyses;
 
   return (
@@ -164,14 +158,22 @@ export default async function DashboardPage() {
         <StatCard title="Lyric Analyses" value={counts.analyses} icon="✦" href="/dashboard/analyses" sub={`${counts.publishedAnalyses} published · ${counts.pendingAnalyses} pending`} />
       </div>
 
-      {/* Summary strip */}
+      {/* ✅ Summary strip — role-aware, hapus yang duplikat */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {[
-          { label: "Published Songs",    value: counts.publishedSongs,    color: "text-emerald-400" },
-          { label: "Pending Songs",      value: counts.pendingSongs,      color: "text-amber-400" },
-          { label: "Published Analyses", value: counts.publishedAnalyses, color: "text-emerald-400" },
-          { label: "Pending Analyses",   value: counts.pendingAnalyses,   color: "text-amber-400" },
-        ].map((item) => (
+        {(role === "admin"
+          ? [
+              { label: "Published Songs",    value: counts.publishedSongs,    color: "text-emerald-400" },
+              { label: "Pending Songs",      value: counts.pendingSongs,      color: counts.pendingSongs > 0 ? "text-red-400" : "text-amber-400" },
+              { label: "Published Analyses", value: counts.publishedAnalyses, color: "text-emerald-400" },
+              { label: "Pending Analyses",   value: counts.pendingAnalyses,   color: counts.pendingAnalyses > 0 ? "text-red-400" : "text-amber-400" },
+            ]
+          : [
+              { label: "Published Songs",    value: counts.publishedSongs,    color: "text-emerald-400" },
+              { label: "Pending Songs",      value: counts.pendingSongs,      color: "text-amber-400" },
+              { label: "Draft Songs",        value: draftSongs,               color: "text-zinc-400" },
+              { label: "Draft Analyses",     value: draftAnalyses,            color: "text-zinc-400" },
+            ]
+        ).map((item) => (
           <div key={item.label} className="bg-zinc-900/60 border border-zinc-800/60 rounded-lg px-4 py-3">
             <p className={`text-xl font-bold font-serif ${item.color}`}>{item.value}</p>
             <p className="text-[11px] text-zinc-500 mt-0.5">{item.label}</p>
@@ -185,6 +187,7 @@ export default async function DashboardPage() {
         recentSongs={recentSongs as any}
         recentAnalyses={recentAnalyses as any}
         recentArtists={recentArtists as any}
+        role={role}
       />
 
       {/* Quick Actions */}
@@ -209,19 +212,15 @@ export default async function DashboardPage() {
                   { label: "+ Analysis", href: "/dashboard/analyses/new" },
                 ]
             ).map((action) => (
-              <Button
-                key={action.href}
-                variant="outline"
-                size="sm"
-                asChild
-                className="h-7 text-xs border-zinc-700 bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 hover:border-zinc-600"
-              >
+              <Button key={action.href} variant="outline" size="sm" asChild
+                className="h-7 text-xs border-zinc-700 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 hover:border-zinc-600">
                 <Link href={action.href}>{action.label}</Link>
               </Button>
             ))}
           </div>
         </CardContent>
       </Card>
+
     </div>
   );
 }

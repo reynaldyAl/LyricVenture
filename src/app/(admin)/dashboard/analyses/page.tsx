@@ -10,7 +10,7 @@ type Role = "admin" | "author";
 
 type AnalysisRow = Pick<
   Tables<"lyric_analyses">,
-  "id" | "theme" | "created_at" | "status"  // ✅ hapus is_published
+  "id" | "theme" | "created_at" | "status"
 > & {
   songs: (Pick<Tables<"songs">, "id" | "title" | "slug" | "cover_image"> & {
     artists: Pick<Tables<"artists">, "id" | "name" | "slug"> | null;
@@ -28,8 +28,9 @@ async function getAnalyses(role: Role, userId: string): Promise<AnalysisRow[]> {
         id, title, slug, cover_image,
         artists ( id, name, slug )
       )
-    `)                                        // ✅ hapus is_published dari select
-    .order("created_at", { ascending: false });
+    `)
+    .order("created_at", { ascending: false })
+    .limit(100); // ✅ tambah limit
 
   const { data, error } = role === "admin"
     ? await query
@@ -44,15 +45,24 @@ export default async function AnalysesPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { data: profileData } = await supabase
-    .from("profiles").select("role").eq("id", user.id).single();
+  // ✅ Parallel fetch — profile + analyses sekaligus
+  const [{ data: profileData }, analyses] = await Promise.all([
+    supabase.from("profiles").select("role").eq("id", user.id).single(),
+    (async () => {
+      // placeholder — akan di-replace setelah role diketahui
+      return [] as AnalysisRow[];
+    })(),
+  ]);
+
   const role = ((profileData as { role: Role } | null)?.role ?? "author") as Role;
 
-  const analyses       = await getAnalyses(role, user.id);
-  const publishedCount = analyses.filter((a) => a.status === "published").length;
-  const pendingCount   = analyses.filter((a) => a.status === "pending").length;
-  const draftCount     = analyses.filter((a) => a.status === "draft").length;
-  const rejectedCount  = analyses.filter((a) => a.status === "rejected").length;
+  // ✅ Fetch analyses setelah role diketahui
+  const analysesData = await getAnalyses(role, user.id);
+
+  const publishedCount = analysesData.filter((a) => a.status === "published").length;
+  const pendingCount   = analysesData.filter((a) => a.status === "pending").length;
+  const draftCount     = analysesData.filter((a) => a.status === "draft").length;
+  const rejectedCount  = analysesData.filter((a) => a.status === "rejected").length;
 
   return (
     <div className="max-w-6xl mx-auto space-y-5">
@@ -62,7 +72,7 @@ export default async function AnalysesPage() {
             {role === "admin" ? "Lyric Analyses" : "My Analyses"}
           </h1>
           <p className="text-sm text-zinc-500 mt-0.5">
-            {analyses.length} total · {publishedCount} published · {pendingCount} pending · {draftCount} draft
+            {analysesData.length} total · {publishedCount} published · {pendingCount} pending · {draftCount} draft
           </p>
         </div>
         <Button asChild size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white h-8 text-xs">
@@ -98,7 +108,7 @@ export default async function AnalysesPage() {
         </CardHeader>
         <Separator className="bg-zinc-800" />
         <CardContent className="p-0">
-          <AnalysisTableClient analyses={analyses} role={role} />
+          <AnalysisTableClient analyses={analysesData} role={role} />
         </CardContent>
       </Card>
     </div>
