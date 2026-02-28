@@ -7,11 +7,16 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
+  Select, SelectContent, SelectItem,
+  SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import {
   Dialog, DialogContent, DialogHeader,
   DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import ModerationButtons from "@/components/admin/ModerationButtons";
+import SubmitForReviewButton from "@/components/admin/SubmitForReviewButton";
 import type { Tables } from "@/lib/types";
 
 type ArtistRow = Pick<
@@ -38,13 +43,17 @@ export default function ArtistTableClient({
   const router = useRouter();
   const { toast } = useToast();
   const [search, setSearch]             = useState("");
+  const [filterStatus, setFilterStatus] = useState<"all" | "published" | "pending" | "draft" | "rejected">("all");
   const [deleteTarget, setDeleteTarget] = useState<ArtistRow | null>(null);
   const [isPending, startTransition]    = useTransition();
 
-  const filtered = artists.filter((a) =>
-    a.name.toLowerCase().includes(search.toLowerCase()) ||
-    (a.origin ?? "").toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = artists.filter((a) => {
+    const matchSearch =
+      a.name.toLowerCase().includes(search.toLowerCase()) ||
+      (a.origin ?? "").toLowerCase().includes(search.toLowerCase());
+    const matchStatus = filterStatus === "all" || a.status === filterStatus;
+    return matchSearch && matchStatus;
+  });
 
   async function handleDelete() {
     if (!deleteTarget) return;
@@ -63,19 +72,34 @@ export default function ArtistTableClient({
 
   return (
     <>
-      {/* Search */}
-      <div className="px-5 py-3 border-b border-zinc-800">
+      {/* Search + Filter */}
+      <div className="px-5 py-3 border-b border-zinc-800 flex flex-col sm:flex-row gap-3">
         <Input
           placeholder="Search by name or origin..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="h-8 text-sm bg-zinc-800 border-zinc-700 text-zinc-200 placeholder:text-zinc-500 max-w-xs"
         />
+        <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v as typeof filterStatus)}>
+          <SelectTrigger className="h-8 text-sm bg-zinc-800 border-zinc-700 text-zinc-300 w-36">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="bg-zinc-900 border-zinc-700 text-zinc-200">
+            <SelectItem value="all"       className="text-sm hover:bg-zinc-800 focus:bg-zinc-800">All</SelectItem>
+            <SelectItem value="published" className="text-sm hover:bg-zinc-800 focus:bg-zinc-800">Published</SelectItem>
+            <SelectItem value="pending"   className="text-sm hover:bg-zinc-800 focus:bg-zinc-800">Pending</SelectItem>
+            <SelectItem value="draft"     className="text-sm hover:bg-zinc-800 focus:bg-zinc-800">Draft</SelectItem>
+            <SelectItem value="rejected"  className="text-sm hover:bg-zinc-800 focus:bg-zinc-800">Rejected</SelectItem>
+          </SelectContent>
+        </Select>
+        <span className="text-xs text-zinc-600 self-center ml-auto">
+          {filtered.length} result{filtered.length !== 1 ? "s" : ""}
+        </span>
       </div>
 
       {filtered.length === 0 ? (
         <div className="py-16 text-center text-zinc-600 text-sm italic">
-          {search ? `No artists matching "${search}"` : "No artists yet. Add the first one!"}
+          {search || filterStatus !== "all" ? "No artists match your filter." : "No artists yet. Add the first one!"}
         </div>
       ) : (
         <div className="overflow-x-auto">
@@ -93,8 +117,6 @@ export default function ArtistTableClient({
             <tbody className="divide-y divide-zinc-800/60">
               {filtered.map((artist) => (
                 <tr key={artist.id} className="hover:bg-zinc-800/30 transition-colors group">
-
-                  {/* Name */}
                   <td className="px-5 py-3">
                     <p className="font-medium text-zinc-200 group-hover:text-indigo-300 transition-colors">
                       {artist.name}
@@ -103,13 +125,9 @@ export default function ArtistTableClient({
                       <p className="text-xs text-zinc-600">est. {artist.formed_year}</p>
                     )}
                   </td>
-
-                  {/* Origin */}
                   <td className="px-4 py-3 text-zinc-400 text-xs hidden md:table-cell">
                     {artist.origin ?? "—"}
                   </td>
-
-                  {/* Genre */}
                   <td className="px-4 py-3 hidden lg:table-cell">
                     <div className="flex flex-wrap gap-1">
                       {(artist.genre ?? []).slice(0, 2).map((g: string) => (
@@ -125,8 +143,6 @@ export default function ArtistTableClient({
                       )}
                     </div>
                   </td>
-
-                  {/* Active */}
                   <td className="px-4 py-3 hidden sm:table-cell">
                     <Badge className={`text-[10px] h-5 px-1.5 border ${
                       artist.is_active
@@ -136,8 +152,6 @@ export default function ArtistTableClient({
                       {artist.is_active ? "Active" : "Inactive"}
                     </Badge>
                   </td>
-
-                  {/* Status */}
                   <td className="px-4 py-3 hidden sm:table-cell">
                     <Badge className={`text-[10px] h-5 px-1.5 border capitalize ${
                       STATUS_COLORS[artist.status ?? "draft"] ?? STATUS_COLORS.draft
@@ -145,12 +159,18 @@ export default function ArtistTableClient({
                       {artist.status ?? "draft"}
                     </Badge>
                   </td>
-
-                  {/* Actions */}
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-1 flex-wrap">
                       {role === "admin" && (
                         <ModerationButtons
+                          table="artists"
+                          id={artist.id}
+                          status={artist.status}
+                          revalidate="/dashboard/artists"
+                        />
+                      )}
+                      {role === "author" && (
+                        <SubmitForReviewButton
                           table="artists"
                           id={artist.id}
                           status={artist.status}
@@ -175,7 +195,6 @@ export default function ArtistTableClient({
         </div>
       )}
 
-      {/* Delete confirm dialog */}
       <Dialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
         <DialogContent className="bg-zinc-900 border-zinc-800 text-zinc-100">
           <DialogHeader>
@@ -188,9 +207,7 @@ export default function ArtistTableClient({
           </DialogHeader>
           <DialogFooter className="gap-2">
             <Button variant="outline" size="sm" onClick={() => setDeleteTarget(null)}
-              className="border-zinc-700 text-zinc-300 hover:bg-zinc-800">
-              Cancel
-            </Button>
+              className="border-zinc-700 text-zinc-300 hover:bg-zinc-800">Cancel</Button>
             <Button size="sm" onClick={handleDelete} disabled={isPending}
               className="bg-red-600 hover:bg-red-700 text-white min-w-[100px]">
               {isPending ? "Deleting..." : "Delete Artist"}

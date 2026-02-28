@@ -7,12 +7,21 @@ import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 
 type Role = "admin" | "author";
 
+interface PendingCounts {
+  songs:    number;
+  artists:  number;
+  albums:   number;
+  analyses: number;
+}
+
 export default function AdminShell({
   children,
   role,
+  pendingCounts,
 }: {
-  children: React.ReactNode;
-  role: Role;
+  children:      React.ReactNode;
+  role:          Role;
+  pendingCounts: PendingCounts;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -21,7 +30,7 @@ export default function AdminShell({
 
       {/* ── Desktop Sidebar ── */}
       <div className="hidden md:flex md:flex-shrink-0">
-        <Sidebar role={role} />
+        <Sidebar role={role} pendingCounts={pendingCounts} />
       </div>
 
       {/* ── Mobile Sidebar via Sheet ── */}
@@ -31,7 +40,7 @@ export default function AdminShell({
           className="p-0 w-64 bg-zinc-900 border-r border-zinc-800"
         >
           <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
-          <Sidebar role={role} onNavigate={() => setMobileOpen(false)} />
+          <Sidebar role={role} pendingCounts={pendingCounts} onNavigate={() => setMobileOpen(false)} />
         </SheetContent>
       </Sheet>
 

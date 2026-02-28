@@ -7,11 +7,16 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
+  Select, SelectContent, SelectItem,
+  SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import {
   Dialog, DialogContent, DialogHeader,
   DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import ModerationButtons from "@/components/admin/ModerationButtons";
+import SubmitForReviewButton from "@/components/admin/SubmitForReviewButton";
 import type { Tables } from "@/lib/types";
 
 type AlbumRow = Pick<
@@ -48,13 +53,17 @@ export default function AlbumTableClient({
   const router = useRouter();
   const { toast } = useToast();
   const [search, setSearch]             = useState("");
+  const [filterStatus, setFilterStatus] = useState<"all" | "published" | "pending" | "draft" | "rejected">("all");
   const [deleteTarget, setDeleteTarget] = useState<AlbumRow | null>(null);
   const [isPending, startTransition]    = useTransition();
 
-  const filtered = albums.filter((a) =>
-    a.title.toLowerCase().includes(search.toLowerCase()) ||
-    (a.artists?.name ?? "").toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = albums.filter((a) => {
+    const matchSearch =
+      a.title.toLowerCase().includes(search.toLowerCase()) ||
+      (a.artists?.name ?? "").toLowerCase().includes(search.toLowerCase());
+    const matchStatus = filterStatus === "all" || a.status === filterStatus;
+    return matchSearch && matchStatus;
+  });
 
   async function handleDelete() {
     if (!deleteTarget) return;
@@ -73,19 +82,34 @@ export default function AlbumTableClient({
 
   return (
     <>
-      {/* Search */}
-      <div className="px-5 py-3 border-b border-zinc-800">
+      {/* Search + Filter */}
+      <div className="px-5 py-3 border-b border-zinc-800 flex flex-col sm:flex-row gap-3">
         <Input
           placeholder="Search by title or artist..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="h-8 text-sm bg-zinc-800 border-zinc-700 text-zinc-200 placeholder:text-zinc-500 max-w-xs"
         />
+        <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v as typeof filterStatus)}>
+          <SelectTrigger className="h-8 text-sm bg-zinc-800 border-zinc-700 text-zinc-300 w-36">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="bg-zinc-900 border-zinc-700 text-zinc-200">
+            <SelectItem value="all"       className="text-sm hover:bg-zinc-800 focus:bg-zinc-800">All</SelectItem>
+            <SelectItem value="published" className="text-sm hover:bg-zinc-800 focus:bg-zinc-800">Published</SelectItem>
+            <SelectItem value="pending"   className="text-sm hover:bg-zinc-800 focus:bg-zinc-800">Pending</SelectItem>
+            <SelectItem value="draft"     className="text-sm hover:bg-zinc-800 focus:bg-zinc-800">Draft</SelectItem>
+            <SelectItem value="rejected"  className="text-sm hover:bg-zinc-800 focus:bg-zinc-800">Rejected</SelectItem>
+          </SelectContent>
+        </Select>
+        <span className="text-xs text-zinc-600 self-center ml-auto">
+          {filtered.length} result{filtered.length !== 1 ? "s" : ""}
+        </span>
       </div>
 
       {filtered.length === 0 ? (
         <div className="py-16 text-center text-zinc-600 text-sm italic">
-          {search ? `No albums matching "${search}"` : "No albums yet. Add the first one!"}
+          {search || filterStatus !== "all" ? "No albums match your filter." : "No albums yet. Add the first one!"}
         </div>
       ) : (
         <div className="overflow-x-auto">
@@ -108,8 +132,6 @@ export default function AlbumTableClient({
                   : null;
                 return (
                   <tr key={album.id} className="hover:bg-zinc-800/30 transition-colors group">
-
-                    {/* Title + cover */}
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 bg-zinc-800 shrink-0 overflow-hidden rounded">
@@ -122,13 +144,9 @@ export default function AlbumTableClient({
                         </p>
                       </div>
                     </td>
-
-                    {/* Artist */}
                     <td className="px-4 py-3 hidden md:table-cell">
                       <span className="text-zinc-400 text-xs">{album.artists?.name ?? "—"}</span>
                     </td>
-
-                    {/* Type badge */}
                     <td className="px-4 py-3 hidden sm:table-cell">
                       <Badge className={`text-[10px] h-5 px-1.5 border capitalize ${
                         TYPE_COLORS[album.album_type] ?? "bg-zinc-800 text-zinc-400 border-zinc-700"
@@ -136,18 +154,12 @@ export default function AlbumTableClient({
                         {album.album_type}
                       </Badge>
                     </td>
-
-                    {/* Tracks */}
                     <td className="px-4 py-3 text-zinc-500 text-xs hidden lg:table-cell">
                       {album.total_tracks ?? "—"}
                     </td>
-
-                    {/* Year */}
                     <td className="px-4 py-3 text-zinc-500 text-xs hidden lg:table-cell">
                       {year ?? "—"}
                     </td>
-
-                    {/* Status */}
                     <td className="px-4 py-3 hidden sm:table-cell">
                       <Badge className={`text-[10px] h-5 px-1.5 border capitalize ${
                         STATUS_COLORS[album.status ?? "draft"] ?? STATUS_COLORS.draft
@@ -155,12 +167,18 @@ export default function AlbumTableClient({
                         {album.status ?? "draft"}
                       </Badge>
                     </td>
-
-                    {/* Actions */}
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-1 flex-wrap">
                         {role === "admin" && (
                           <ModerationButtons
+                            table="albums"
+                            id={album.id}
+                            status={album.status}
+                            revalidate="/dashboard/albums"
+                          />
+                        )}
+                        {role === "author" && (
+                          <SubmitForReviewButton
                             table="albums"
                             id={album.id}
                             status={album.status}
@@ -186,7 +204,6 @@ export default function AlbumTableClient({
         </div>
       )}
 
-      {/* Delete dialog */}
       <Dialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
         <DialogContent className="bg-zinc-900 border-zinc-800 text-zinc-100">
           <DialogHeader>
@@ -199,9 +216,7 @@ export default function AlbumTableClient({
           </DialogHeader>
           <DialogFooter className="gap-2">
             <Button variant="outline" size="sm" onClick={() => setDeleteTarget(null)}
-              className="border-zinc-700 text-zinc-300 hover:bg-zinc-800">
-              Cancel
-            </Button>
+              className="border-zinc-700 text-zinc-300 hover:bg-zinc-800">Cancel</Button>
             <Button size="sm" onClick={handleDelete} disabled={isPending}
               className="bg-red-600 hover:bg-red-700 text-white min-w-[100px]">
               {isPending ? "Deleting..." : "Delete Album"}
