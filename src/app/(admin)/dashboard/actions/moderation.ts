@@ -6,6 +6,13 @@ import { createClient } from "@/lib/supabase/server";
 type Table = "songs" | "artists" | "albums" | "lyric_analyses";
 type ModerationStatus = "published" | "rejected" | "draft";
 
+const OWNER_FIELD: Record<Table, string> = {
+  songs:          "created_by",
+  artists:        "created_by",
+  albums:         "created_by",
+  lyric_analyses: "author_id",
+};
+
 export async function moderateContent(
   table: Table,
   id: string,
@@ -21,6 +28,15 @@ export async function moderateContent(
     .from("profiles").select("role").eq("id", user.id).single();
   if (profile?.role !== "admin") return { error: "Unauthorized" };
 
+  //  Fix: select "id" saja untuk validasi exist
+  const { data: row } = await supabase
+    .from(table)
+    .select("id")
+    .eq("id", id)
+    .single();
+
+  if (!row) return { error: "Content not found" };
+
   const { error } = await supabase
     .from(table)
     .update({ status: action })
@@ -30,10 +46,10 @@ export async function moderateContent(
 
   revalidatePath(revalidate);
   revalidatePath("/dashboard");
+  revalidatePath(`/dashboard/${table === "lyric_analyses" ? "analyses" : table}`);
   return { success: true };
 }
 
-// ✅ Baru: author submit konten untuk direview admin
 export async function submitForReview(
   table: Table,
   id: string,
@@ -44,17 +60,31 @@ export async function submitForReview(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Unauthenticated" };
 
-  // Cek status sekarang — hanya draft/rejected yang boleh submit
+  const ownerField = OWNER_FIELD[table];
+
+  //  Fix: select "status" + "id" saja, ownership query terpisah
   const { data: row } = await supabase
     .from(table)
-    .select("status")
+    .select("id, status")
     .eq("id", id)
     .single();
 
   if (!row) return { error: "Content not found" };
 
-  if (row.status === "pending") return { error: "Already submitted for review" };
-  if (row.status === "published") return { error: "Already published" };
+  //  Fix: ownership check dengan query terpisah menggunakan .eq() langsung
+  const { data: owned } = await supabase
+    .from(table)
+    .select("id")
+    .eq("id", id)
+    .eq(ownerField, user.id)
+    .single();
+
+  if (!owned) return { error: "Unauthorized" };
+
+  const { status } = row as { id: string; status: string | null };
+
+  if (status === "pending")   return { error: "Already submitted for review" };
+  if (status === "published") return { error: "Already published" };
 
   const { error } = await supabase
     .from(table)
@@ -65,5 +95,6 @@ export async function submitForReview(
 
   revalidatePath(revalidate);
   revalidatePath("/dashboard");
+  revalidatePath(`/dashboard/${table === "lyric_analyses" ? "analyses" : table}`);
   return { success: true };
 }

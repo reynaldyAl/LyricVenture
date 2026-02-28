@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import ModerationButtons from "@/components/admin/ModerationButtons";
+import SubmitForReviewButton from "@/components/admin/SubmitForReviewButton";  
 import type { Tables } from "@/lib/types";
 
 type SongRow = Pick<
@@ -198,6 +199,15 @@ export default function SongTableClient({
                     <div className="flex items-center justify-end gap-1 flex-wrap">
                       {role === "admin" && (
                         <ModerationButtons
+                          table="songs"
+                          id={song.id}
+                          status={song.status}
+                          revalidate="/dashboard/songs"
+                        />
+                      )}
+                      {/* ✅ Author: submit for review */}
+                      {role === "author" && (
+                        <SubmitForReviewButton
                           table="songs"
                           id={song.id}
                           status={song.status}
