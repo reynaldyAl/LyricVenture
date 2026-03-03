@@ -28,14 +28,14 @@ export async function GET(
   const { data: analysesData } = await db
     .from('lyric_analyses')
     .select(`
-      id, intro, theme, is_published, published_at, created_at,
+      id, intro, theme, status, published_at, created_at,
       songs (
         id, title, slug, cover_image,
         artists ( id, name, slug )
       )
     `)
     .eq('author_id', profile.id)   // profile.id sekarang terbaca — tidak lagi never
-    .eq('is_published', true)
+    .eq('status', 'published')           //  FIX 1 — ganti is_published → status
     .order('published_at', { ascending: false })
 
   return okResponse({

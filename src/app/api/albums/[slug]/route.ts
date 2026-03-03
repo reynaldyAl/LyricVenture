@@ -15,7 +15,7 @@ export async function GET(
       *,
       artists ( id, name, slug, cover_image ),
       songs (
-        id, title, slug, duration_sec, is_published,
+        id, title, slug, duration_sec, status,
         view_count, spotify_track_id, cover_image,
         song_tags ( tags ( id, name, slug, color ) )
       )

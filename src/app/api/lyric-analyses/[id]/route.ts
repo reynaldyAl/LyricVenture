@@ -46,7 +46,8 @@ export async function PUT(
   const body = await request.json()
   const { id: _id, song_id, created_at, author_id, ...rest } = body
 
-  if (rest.is_published && !rest.published_at) {
+  // ✅ FIX 5 — ganti is_published → status
+  if (rest.status === 'published' && !rest.published_at) {
     rest.published_at = new Date().toISOString()
   }
 

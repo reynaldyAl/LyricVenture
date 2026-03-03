@@ -14,12 +14,12 @@ export async function GET(request: Request) {
     .from('songs')
     .select(`
       id, title, slug, release_date, duration_sec,
-      cover_image, view_count, is_published, spotify_track_id, language,
+      cover_image, view_count, status, spotify_track_id, language,
       artists ( id, name, slug ),
       albums  ( id, title, slug ),
       song_tags ( tags ( id, name, slug, color ) )
     `, { count: 'exact' })
-    .eq('is_published', true)
+    .eq('status', 'published')           // FIX — ganti is_published → status
     .order('published_at', { ascending: false })
     .range(offset, offset + limit - 1)
 
@@ -51,7 +51,7 @@ export async function POST(request: Request) {
     artist_id, album_id, title, slug,
     spotify_track_id, youtube_url, release_date,
     duration_sec, cover_image, language,
-    is_published, meta_title, meta_description, og_image,
+    status, meta_title, meta_description, og_image,
     tag_ids,
   } = body
 
@@ -74,8 +74,8 @@ export async function POST(request: Request) {
       duration_sec:     duration_sec     ?? null,
       cover_image:      cover_image      ?? null,
       language:         language         ?? 'en',
-      is_published:     is_published     ?? false,
-      published_at:     is_published ? new Date().toISOString() : null,
+      status:           status           ?? 'draft',  // ✅ FIX — default ke draft, bukan langsung published
+      published_at:     status          === 'published' ? new Date().toISOString() : null,
       meta_title:       meta_title       ?? null,
       meta_description: meta_description ?? null,
       og_image:         og_image         ?? null,

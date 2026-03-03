@@ -13,13 +13,13 @@ export async function GET(request: Request) {
   let query = supabase
     .from('lyric_analyses')
     .select(`
-      id, intro, theme, is_published, published_at, created_at,
+      id, intro, theme, status, published_at, created_at,
       songs (
         id, title, slug,
         artists ( id, name, slug )
       )
     `, { count: 'exact' })
-    .eq('is_published', true)
+    .eq('status', 'published')           // ✅ FIX 1 — ganti is_published → status
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1)
 
@@ -36,7 +36,7 @@ export async function POST(request: Request) {
   if (authError) return authError
 
   const body = await request.json()
-  const { song_id, intro, theme, background, conclusion, is_published } = body
+  const { song_id, intro, theme, background, conclusion, status } = body  // ✅ FIX 2
 
   if (!song_id) return errorResponse('song_id is required', 400)
 
@@ -48,15 +48,15 @@ export async function POST(request: Request) {
     .from('lyric_analyses').select('id').eq('song_id', song_id).single()
   if (existing) return errorResponse('Lyric analysis already exists for this song', 409)
 
-  const insert: InsertTables<'lyric_analyses'> = {
+  const insert = {
     song_id,
     author_id:    user!.id,
     intro:        intro      ?? null,
     theme:        theme      ?? null,
     background:   background ?? null,
     conclusion:   conclusion ?? null,
-    is_published: is_published ?? false,
-    published_at: is_published ? new Date().toISOString() : null,
+    status:       status     ?? 'draft',                              // ✅ FIX 3
+    published_at: status === 'published' ? new Date().toISOString() : null,  // ✅ FIX 4
   }
 
   const { data, error } = await supabase

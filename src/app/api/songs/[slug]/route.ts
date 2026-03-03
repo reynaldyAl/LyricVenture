@@ -1,7 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { okResponse, errorResponse, notFound, requireAuth, requireAdmin } from '@/lib/api-helpers'
 
-// GET /api/songs/[slug] — detail lengkap dengan relasi
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ slug: string }> }
@@ -18,7 +17,7 @@ export async function GET(
       song_tags ( tags ( id, name, slug, color ) ),
       lyric_analyses (
         id, intro, theme, background, conclusion,
-        is_published, author_id,
+        status, author_id,
         lyric_sections (
           id, section_type, section_label, content, order_index,
           lyric_highlights (
@@ -29,14 +28,13 @@ export async function GET(
       )
     `)
     .eq('slug', slug)
-    .eq('is_published', true)
+    .eq('status', 'published')           // ✅ FIX 5
     .single()
 
   if (error || !data) return notFound('Song')
   return okResponse(data)
 }
 
-// PUT /api/songs/[slug]
 export async function PUT(
   request: Request,
   { params }: { params: Promise<{ slug: string }> }
@@ -49,12 +47,12 @@ export async function PUT(
   const body = await request.json()
   const { tag_ids, id, created_at, created_by, artist_id, ...rest } = body
 
-  // Handle published_at
-  if (rest.is_published && !rest.published_at) {
+  // ✅ FIX 6 — ganti is_published → status
+  if (rest.status === 'published' && !rest.published_at) {
     rest.published_at = new Date().toISOString()
   }
 
-  const db = supabase as any  // ✅ fix v2.97
+  const db = supabase as any
 
   const { data, error } = await db
     .from('songs')
@@ -66,7 +64,6 @@ export async function PUT(
   if (error) return errorResponse(error.message)
   if (!data) return notFound('Song')
 
-  // Update tags jika dikirim
   if (tag_ids !== undefined) {
     await (supabase as any).from('song_tags').delete().eq('song_id', data.id)
     if (tag_ids.length > 0) {
@@ -79,7 +76,6 @@ export async function PUT(
   return okResponse(data)
 }
 
-// DELETE /api/songs/[slug] — admin only
 export async function DELETE(
   _req: Request,
   { params }: { params: Promise<{ slug: string }> }
