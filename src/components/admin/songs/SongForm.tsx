@@ -67,7 +67,7 @@ export default function SongForm({ mode, song, artists, albums, tags }: SongForm
     duration_sec:     song?.duration_sec?.toString() ?? "",
     cover_image:      song?.cover_image        ?? "",
     language:         song?.language           ?? "en",
-    is_published:     song?.is_published       ?? false,
+    status:           song?.status       ?? "draft",
   });
 
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>(
@@ -122,7 +122,7 @@ export default function SongForm({ mode, song, artists, albums, tags }: SongForm
         duration_sec:     form.duration_sec ? Number(form.duration_sec) : null,
         cover_image:      form.cover_image      || null,
         language:         form.language         || "en",
-        is_published:     form.is_published,
+        status:           form.status,
         tag_ids:          selectedTagIds,
       };
 
@@ -383,12 +383,14 @@ export default function SongForm({ mode, song, artists, albums, tags }: SongForm
             <div>
               <p className="text-sm font-medium text-zinc-200">Published</p>
               <p className="text-xs text-zinc-500 mt-0.5">
-                {form.is_published ? "Visible to public" : "Draft — not visible to public"}
+                {form.status === "published" 
+                ? "Visible to public" 
+                : "Draft — not visible to public"}
               </p>
             </div>
             <Switch
-              checked={form.is_published}
-              onCheckedChange={(v) => set("is_published", v)}
+              checked={form.status === "published"}
+              onCheckedChange={(v) => set("status", v ? "published" : "draft")}
               className="data-[state=checked]:bg-indigo-600"
             />
           </div>

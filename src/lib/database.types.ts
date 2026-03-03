@@ -168,7 +168,6 @@ export type Database = {
           created_at: string
           id: string
           intro: string | null
-          is_published: boolean
           published_at: string | null
           reject_reason: string | null
           song_id: string
@@ -183,7 +182,6 @@ export type Database = {
           created_at?: string
           id?: string
           intro?: string | null
-          is_published?: boolean
           published_at?: string | null
           reject_reason?: string | null
           song_id: string
@@ -198,7 +196,6 @@ export type Database = {
           created_at?: string
           id?: string
           intro?: string | null
-          is_published?: boolean
           published_at?: string | null
           reject_reason?: string | null
           song_id?: string
@@ -383,7 +380,6 @@ export type Database = {
           created_by: string | null
           duration_sec: number | null
           id: string
-          is_published: boolean
           language: string
           meta_description: string | null
           meta_title: string | null
@@ -407,7 +403,6 @@ export type Database = {
           created_by?: string | null
           duration_sec?: number | null
           id?: string
-          is_published?: boolean
           language?: string
           meta_description?: string | null
           meta_title?: string | null
@@ -431,7 +426,6 @@ export type Database = {
           created_by?: string | null
           duration_sec?: number | null
           id?: string
-          is_published?: boolean
           language?: string
           meta_description?: string | null
           meta_title?: string | null

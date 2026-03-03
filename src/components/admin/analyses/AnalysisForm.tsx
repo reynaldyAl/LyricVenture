@@ -42,7 +42,7 @@ export default function AnalysisForm({ mode, analysis, songs }: AnalysisFormProp
     theme:        analysis?.theme      ?? "",
     background:   analysis?.background ?? "",
     conclusion:   analysis?.conclusion ?? "",
-    is_published: analysis?.is_published ?? false,
+    status:       analysis?.status     ?? "draft",
   });
 
   function set(key: string, value: string | boolean) {
@@ -62,7 +62,7 @@ export default function AnalysisForm({ mode, analysis, songs }: AnalysisFormProp
         theme:        form.theme       || null,
         background:   form.background  || null,
         conclusion:   form.conclusion  || null,
-        is_published: form.is_published,
+        status:       form.status,
         ...(mode === "create" ? { song_id: form.song_id } : {}),
       };
 
@@ -197,12 +197,12 @@ export default function AnalysisForm({ mode, analysis, songs }: AnalysisFormProp
             <div>
               <p className="text-sm font-medium text-zinc-200">Published</p>
               <p className="text-xs text-zinc-500 mt-0.5">
-                {form.is_published ? "Visible to public" : "Draft — not visible to public"}
+                {form.status === "published" ? "Visible to public" : "Draft — not visible to public"}
               </p>
             </div>
             <Switch
-              checked={form.is_published}
-              onCheckedChange={(v) => set("is_published", v)}
+              checked={form.status === "published"}
+              onCheckedChange={(v) => set("status", v ? "published" : "draft")}
               className="data-[state=checked]:bg-indigo-600"
             />
           </div>
