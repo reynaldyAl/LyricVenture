@@ -44,10 +44,11 @@ export async function generateMetadata({
   };
 }
 
-// ── Types — sesuai GET /api/albums/[slug] response ────────
+// ── Types ─────────────────────────────────────────────────
 type SongInAlbum = Pick<
   Tables<"songs">,
-  "id" | "title" | "slug" | "cover_image" | "duration_sec" | "is_published" | "view_count" | "spotify_track_id"
+  // ✅ FIX — ganti is_published → status
+  "id" | "title" | "slug" | "cover_image" | "duration_sec" | "status" | "view_count" | "spotify_track_id"
 > & {
   song_tags: { tags: Pick<Tables<"tags">, "id" | "name" | "slug" | "color"> | null }[];
 };
@@ -59,19 +60,19 @@ type AlbumDetail = Tables<"albums"> & {
 
 async function getAlbum(slug: string): Promise<AlbumDetail | null> {
   const supabase = await createClient();
-  // Mirror dari GET /api/albums/[slug]
   const { data, error } = await supabase
     .from("albums")
     .select(`
       *,
       artists ( id, name, slug, cover_image ),
       songs (
-        id, title, slug, duration_sec, is_published,
+        id, title, slug, duration_sec, status,
         view_count, spotify_track_id, cover_image,
         song_tags ( tags ( id, name, slug, color ) )
       )
     `)
     .eq("slug", slug)
+    .eq("status", "published")   // ✅ FIX — album harus published
     .single();
 
   if (error || !data) return null;
@@ -101,8 +102,8 @@ export default async function AlbumDetailPage({
   if (!album) notFound();
 
   const artist = album.artists;
-  // Filter published songs untuk public
-  const publishedSongs = album.songs.filter((s) => s.is_published);
+  // ✅ FIX — filter pakai status bukan is_published
+  const publishedSongs = album.songs.filter((s) => s.status === "published");
   const year           = album.release_date ? new Date(album.release_date).getFullYear() : null;
   const duration       = totalDuration(publishedSongs);
 

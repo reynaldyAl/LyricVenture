@@ -56,7 +56,6 @@ type SongDetail = Tables<"songs"> & {
   artists:        Tables<"artists"> | null;
   albums:         Tables<"albums">  | null;
   song_tags:      { tags: Pick<Tables<"tags">, "id" | "name" | "slug" | "color"> | null }[];
-  // ✅ Bisa array ATAU object tergantung Supabase response
   lyric_analyses: Analysis[] | Analysis | null;
 };
 
@@ -79,11 +78,27 @@ async function getSong(slug: string): Promise<SongDetail | null> {
       )
     `)
     .eq("slug", slug)
-    .eq("is_published", true)
+    .eq("status", "published")           // ✅ FIX 1 — ganti is_published → status
     .single();
 
   if (error || !data) return null;
-  return data as SongDetail;
+
+  // ✅ FIX 2 — filter lyric_analyses yang sudah published saja
+  const raw = data as SongDetail;
+  const rawAnalyses = Array.isArray(raw.lyric_analyses)
+    ? raw.lyric_analyses
+    : raw.lyric_analyses
+    ? [raw.lyric_analyses]
+    : [];
+
+  const publishedAnalyses = rawAnalyses.filter(
+    (a: any) => a.status === "published"
+  );
+
+  return {
+    ...raw,
+    lyric_analyses: publishedAnalyses,
+  };
 }
 
 async function getRelatedSongs(artistId: string, currentSlug: string) {
@@ -92,7 +107,7 @@ async function getRelatedSongs(artistId: string, currentSlug: string) {
     .from("songs")
     .select("id, title, slug, cover_image, artists ( name )")
     .eq("artist_id", artistId)
-    .eq("is_published", true)
+    .eq("status", "published")           // ✅ FIX 3 — ganti is_published → status
     .neq("slug", currentSlug)
     .limit(4);
   return (data ?? []) as any[];
@@ -124,13 +139,9 @@ export default async function SongDetailPage({
   const artist        = song.artists as any;
   const album         = song.albums  as any;
   const tags          = song.song_tags.map((st) => st.tags).filter(Boolean) as any[];
-  // ✅ Handle array atau object langsung
-  const rawAnalysis   = song.lyric_analyses;
-  const analysis      = (
-    Array.isArray(rawAnalysis)
-      ? (rawAnalysis[0] ?? null)
-      : (rawAnalysis ?? null)
-  ) as Analysis | null;
+  // ✅ FIX 4 — selalu array sekarang, ambil index 0
+  const rawAnalyses   = song.lyric_analyses as Analysis[];
+  const analysis      = rawAnalyses?.[0] ?? null;
   const relatedSongs  = artist?.id
     ? await getRelatedSongs(artist.id, slug)
     : [];

@@ -19,30 +19,32 @@ async function getHomeData() {
     supabase
       .from("artists")
       .select("id, name, slug, cover_image, genre, origin, is_active")
+      .eq("status", "published")   // ✅ tambah filter status
       .eq("is_active", true)
       .order("name")
       .limit(8),
     supabase
       .from("lyric_analyses")
       .select(`id, intro, theme, published_at, songs ( id, title, slug, cover_image, language, artists ( id, name, slug ) )`)
-      .eq("is_published", true)
+      .eq("status", "published")   // ✅ ganti is_published → status
       .order("published_at", { ascending: false })
       .limit(4),
     supabase
       .from("songs")
       .select(`id, title, slug, cover_image, language, duration_sec, view_count, artists ( id, name, slug ), song_tags ( tags ( id, name, slug, color ) )`)
-      .eq("is_published", true)
-      .order("published_at", { ascending: false })
+      .eq("status", "published")   // ✅ ganti is_published → status
+      .order("view_count", { ascending: false })  // ✅ order by popular
       .limit(8),
     supabase
       .from("albums")
       .select(`id, title, slug, cover_image, release_date, album_type, artists ( id, name, slug )`)
+      .eq("status", "published")   // ✅ tambah filter status (BUG FIX)
       .order("release_date", { ascending: false })
       .limit(6),
     // Stats counters
-    supabase.from("songs").select("id", { count: "exact", head: true }).eq("is_published", true),
-    supabase.from("artists").select("id", { count: "exact", head: true }).eq("is_active", true),
-    supabase.from("lyric_analyses").select("id", { count: "exact", head: true }).eq("is_published", true),
+    supabase.from("songs").select("id", { count: "exact", head: true }).eq("status", "published"),
+    supabase.from("artists").select("id", { count: "exact", head: true }).eq("status", "published"),
+    supabase.from("lyric_analyses").select("id", { count: "exact", head: true }).eq("status", "published"),
   ]);
 
   return {

@@ -3,14 +3,13 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import type { Tables } from "@/lib/types";
 
-// ✅ Type eksplisit untuk partial select
 type ProfilePublic = Pick<Tables<"profiles">, "id" | "username" | "full_name" | "avatar_url" | "bio" | "role" | "created_at">
 
 type AnalysisWithSong = {
   id:           string
   intro:        string | null
   theme:        string | null
-  is_published: boolean
+  status:       string          // ✅ FIX 2 — ganti is_published → status
   published_at: string | null
   created_at:   string
   songs: {
@@ -39,24 +38,22 @@ async function getProfile(username: string) {
     .eq("username", username)
     .single();
 
-  // ✅ Cast eksplisit — fix "Property X does not exist on type never"
   const profile = profileData as ProfilePublic | null;
   if (!profile) return null;
 
   const { data: analysesData } = await supabase
     .from("lyric_analyses")
     .select(`
-      id, intro, theme, is_published, published_at, created_at,
+      id, intro, theme, status, published_at, created_at,
       songs (
         id, title, slug, cover_image,
         artists ( id, name, slug )
       )
     `)
     .eq("author_id", profile.id)
-    .eq("is_published", true)
+    .eq("status", "published")           // ✅ FIX 1 — ganti is_published → status
     .order("published_at", { ascending: false });
 
-  // ✅ Cast eksplisit — fix relasi nested never
   const analyses = (analysesData ?? []) as AnalysisWithSong[]
 
   return { profile, analyses };
@@ -159,7 +156,7 @@ export default async function PublicProfilePage({ params }: Props) {
                 return (
                   <Link
                     key={analysis.id}
-                    href={`/songs/${song?.slug ?? "#"}`}
+                    href={`/analyses/${analysis.id}`}  // ✅ FIX 3 — link ke analysis bukan song
                     className="flex items-center gap-4 p-4 border border-[#E2E0DB] hover:border-[#3B5BDB] transition-colors group"
                     style={{ background: "#FFFFFF" }}
                   >
@@ -208,7 +205,7 @@ export default async function PublicProfilePage({ params }: Props) {
                           : "—"}
                       </p>
                       <span className="text-[10px] text-[#3B5BDB] opacity-0 group-hover:opacity-100 transition-opacity">
-                        View →
+                        Read →
                       </span>
                     </div>
                   </Link>

@@ -35,7 +35,7 @@ async function getSongsData() {
         albums  ( id, title, slug ),
         song_tags ( tags ( id, name, slug, color ) )
       `)
-      .eq("is_published", true)
+      .eq("status", "published")           // ✅ FIX — ganti is_published → status
       .order("published_at", { ascending: false }),
     supabase
       .from("tags")

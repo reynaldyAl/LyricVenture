@@ -21,7 +21,6 @@ type AlbumItem = Pick<
   artists: Pick<Tables<"artists">, "id" | "name" | "slug"> | null;
 };
 
-// ── Sesuai GET /api/albums — support ?artist_id= ──────────
 async function getAlbums(): Promise<AlbumItem[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -30,6 +29,7 @@ async function getAlbums(): Promise<AlbumItem[]> {
       id, title, slug, cover_image, release_date, album_type,
       artists ( id, name, slug )
     `)
+    .eq("status", "published")   // ✅ FIX — hanya album yang sudah di-approve
     .order("release_date", { ascending: false });
 
   if (error) { console.error("getAlbums:", error.message); return []; }

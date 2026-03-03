@@ -18,7 +18,7 @@ type AnalysisFull = Tables<"lyric_analyses"> & {
 
 async function getAnalysis(id: string): Promise<AnalysisFull | null> {
   const supabase = await createClient();
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from("lyric_analyses")
     .select(`
       *,
@@ -33,7 +33,7 @@ async function getAnalysis(id: string): Promise<AnalysisFull | null> {
       )
     `)
     .eq("id", id)
-    .eq("is_published", true)
+    .eq("status", "published")    // ✅ FIX 3 — ganti is_published → status
     .single();
 
   if (error || !data) return null;

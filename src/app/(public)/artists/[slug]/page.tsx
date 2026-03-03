@@ -40,17 +40,19 @@ export async function generateMetadata({
   };
 }
 
-// ── Types — sesuai GET /api/artists/[slug] response ───────
+// ── Types ─────────────────────────────────────────────────
 type SongInArtist = Pick<
   Tables<"songs">,
-  "id" | "title" | "slug" | "cover_image" | "duration_sec" | "is_published" | "view_count" | "spotify_track_id"
+  // ✅ FIX 2 — ganti is_published → status
+  "id" | "title" | "slug" | "cover_image" | "duration_sec" | "status" | "view_count" | "spotify_track_id"
 > & {
   song_tags: { tags: Pick<Tables<"tags">, "id" | "name" | "slug" | "color"> | null }[];
 };
 
 type AlbumInArtist = Pick<
   Tables<"albums">,
-  "id" | "title" | "slug" | "cover_image" | "release_date" | "album_type" | "total_tracks"
+  // ✅ FIX 3 — tambah status
+  "id" | "title" | "slug" | "cover_image" | "release_date" | "album_type" | "total_tracks" | "status"
 >;
 
 type ArtistDetail = Tables<"artists"> & {
@@ -60,19 +62,20 @@ type ArtistDetail = Tables<"artists"> & {
 
 async function getArtist(slug: string): Promise<ArtistDetail | null> {
   const supabase = await createClient();
-  // Supabase langsung — mirror dari GET /api/artists/[slug]
   const { data, error } = await supabase
     .from("artists")
     .select(`
       *,
-      albums ( id, title, slug, release_date, cover_image, album_type, total_tracks ),
+      albums ( id, title, slug, release_date, cover_image, album_type, total_tracks, status ),
       songs (
-        id, title, slug, cover_image, release_date,
-        duration_sec, is_published, view_count, spotify_track_id,
+        id, title, slug, cover_image,
+        duration_sec, status, view_count, spotify_track_id,
         song_tags ( tags ( id, name, slug, color ) )
       )
     `)
     .eq("slug", slug)
+    .eq("status", "published")  // ✅ FIX 1 — artist harus published
+    .eq("is_active", true)      // ✅ double check aktif
     .single();
 
   if (error || !data) return null;
@@ -93,11 +96,18 @@ export default async function ArtistDetailPage({
   const artist   = await getArtist(slug);
   if (!artist) notFound();
 
-  // Filter hanya song yang published untuk public
-  const publishedSongs = artist.songs.filter((s) => s.is_published);
-  const albums         = artist.albums.sort(
-    (a, b) => new Date(b.release_date ?? 0).getTime() - new Date(a.release_date ?? 0).getTime()
-  );
+  // ✅ FIX 2 — filter songs pakai status bukan is_published
+  const publishedSongs = artist.songs.filter((s) => s.status === "published");
+
+  // ✅ FIX 3 — filter albums yang sudah published saja
+  const albums = artist.albums
+    .filter((a) => a.status === "published")
+    .sort(
+      (a, b) =>
+        new Date(b.release_date ?? 0).getTime() -
+        new Date(a.release_date ?? 0).getTime()
+    );
+
   const genre = (artist.genre as string[] | null) ?? [];
 
   return (
@@ -105,7 +115,7 @@ export default async function ArtistDetailPage({
 
       {/* ══════════════════════════════════════════════
           HERO — banner + artist info
-      ════════════════════════════════════════���═════ */}
+      ══════════════════════════════════════════════ */}
       <div style={{ background: "#FFFFFF" }}>
         {/* Banner */}
         <div className="relative h-48 md:h-64 bg-[#E2E0DB] overflow-hidden">
@@ -118,7 +128,6 @@ export default async function ArtistDetailPage({
               priority
             />
           ) : (
-            /* Abstract pattern fallback */
             <div
               className="w-full h-full"
               style={{
@@ -177,7 +186,7 @@ export default async function ArtistDetailPage({
                 {artist.origin && <span>📍 {artist.origin}</span>}
                 {artist.formed_year && <span>Est. {artist.formed_year}</span>}
                 {genre.length > 0 && (
-                  <span>{(genre as string[]).join(" · ")}</span>
+                  <span>{genre.join(" · ")}</span>
                 )}
                 <span className="text-[#C0B8AE]">
                   {publishedSongs.length} song{publishedSongs.length !== 1 ? "s" : ""}
@@ -247,9 +256,7 @@ export default async function ArtistDetailPage({
         <section className="border-t border-[#E2E0DB]" style={{ background: "#FFFFFF" }}>
           <div className="container mx-auto px-6 py-12 max-w-5xl">
             <p className="text-[10px] tracking-[0.4em] uppercase text-[#8A8680] mb-2">Songs</p>
-            <h2 className="font-serif font-bold text-2xl text-[#1A1917] mb-6">
-              All Songs
-            </h2>
+            <h2 className="font-serif font-bold text-2xl text-[#1A1917] mb-6">All Songs</h2>
 
             {/* Column headers */}
             <div className="grid grid-cols-[2rem_2.5rem_1fr_6rem_4rem] gap-3 items-center px-3 pb-2 border-b border-[#E2E0DB]">

@@ -22,7 +22,6 @@ type AnalysisItem = Pick<Tables<"lyric_analyses">, "id" | "theme" | "intro" | "p
 
 async function getAnalyses(): Promise<AnalysisItem[]> {
   const supabase = await createClient();
-  // Mirror dari GET /api/lyric-analyses — only is_published:true
   const { data, error } = await supabase
     .from("lyric_analyses")
     .select(`
@@ -32,7 +31,7 @@ async function getAnalyses(): Promise<AnalysisItem[]> {
         artists ( id, name, slug )
       )
     `)
-    .eq("is_published", true)
+    .eq("status", "published")           // ✅ FIX 1 — ganti is_published → status
     .order("published_at", { ascending: false });
 
   if (error) { console.error("getAnalyses:", error.message); return []; }
@@ -84,7 +83,7 @@ export default async function AnalysesPage() {
               return (
                 <Link
                   key={analysis.id}
-                  href={`/songs/${song?.slug}`}
+                  href={`/analyses/${analysis.id}`}  // ✅ FIX 2 — link ke analysis bukan song
                   className="group flex gap-5 py-6 -mx-3 px-3 hover:bg-white transition-colors"
                 >
                   {/* Index number */}

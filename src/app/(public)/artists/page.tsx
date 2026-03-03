@@ -15,16 +15,16 @@ export const metadata: Metadata = {
 
 type ArtistItem = Pick<
   Tables<"artists">,
-  "id" | "name" | "slug" | "cover_image" | "genre" | "origin" | "formed_year" | "is_active"
+  "id" | "name" | "slug" | "cover_image" | "genre" | "origin" | "formed_year" | "is_active" | "status"
 >;
 
 async function getArtists(): Promise<ArtistItem[]> {
   const supabase = await createClient();
-  // Query Supabase langsung (bukan API) — public page tidak butuh auth
   const { data, error } = await supabase
     .from("artists")
-    .select("id, name, slug, cover_image, genre, origin, formed_year, is_active")
-    .eq("is_active", true)
+    .select("id, name, slug, cover_image, genre, origin, formed_year, is_active, status")
+    .eq("status", "published")   // ✅ hanya yang sudah di-approve admin
+    .eq("is_active", true)       // ✅ double check aktif
     .order("name", { ascending: true });
 
   if (error) { console.error("getArtists:", error.message); return []; }
