@@ -189,8 +189,8 @@ export default function SectionsEditor({ analysisId, initialSections }: Sections
     setHighlightForm({
       phrase:         highlight.phrase,
       meaning:        highlight.meaning,
-      start_index:    highlight.start_index.toString(),
-      end_index:      highlight.end_index.toString(),
+      start_index:    (highlight.start_index ?? 0).toString(),
+      end_index:      (highlight.end_index ?? 0).toString(),
       color_tag:      highlight.color_tag ?? "#6366f1",
       highlight_type: highlight.highlight_type ?? "metaphor",
       order_index:    highlight.order_index,
