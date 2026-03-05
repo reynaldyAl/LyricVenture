@@ -25,6 +25,7 @@ export type Database = {
           id: string
           meta_description: string | null
           meta_title: string | null
+          published_at: string | null
           reject_reason: string | null
           release_date: string | null
           slug: string
@@ -43,6 +44,7 @@ export type Database = {
           id?: string
           meta_description?: string | null
           meta_title?: string | null
+          published_at?: string | null
           reject_reason?: string | null
           release_date?: string | null
           slug: string
@@ -61,6 +63,7 @@ export type Database = {
           id?: string
           meta_description?: string | null
           meta_title?: string | null
+          published_at?: string | null
           reject_reason?: string | null
           release_date?: string | null
           slug?: string
@@ -102,6 +105,7 @@ export type Database = {
           meta_title: string | null
           name: string
           origin: string | null
+          published_at: string | null
           reject_reason: string | null
           slug: string
           social_links: Json | null
@@ -123,6 +127,7 @@ export type Database = {
           meta_title?: string | null
           name: string
           origin?: string | null
+          published_at?: string | null
           reject_reason?: string | null
           slug: string
           social_links?: Json | null
@@ -144,6 +149,7 @@ export type Database = {
           meta_title?: string | null
           name?: string
           origin?: string | null
+          published_at?: string | null
           reject_reason?: string | null
           slug?: string
           social_links?: Json | null
