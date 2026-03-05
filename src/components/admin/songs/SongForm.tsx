@@ -28,6 +28,7 @@ interface SongFormProps {
   artists: ArtistOption[];
   albums:  AlbumOption[];
   tags:    TagOption[];
+  role?:  "admin" | "author";
 }
 
 const NO_ALBUM = "__none__";
@@ -51,7 +52,7 @@ function slugify(text: string) {
     .replace(/^-+|-+$/g, "");
 }
 
-export default function SongForm({ mode, song, artists, albums, tags }: SongFormProps) {
+export default function SongForm({ mode, song, artists, albums, tags, role = "author" }: SongFormProps) {
   const router    = useRouter();
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
@@ -376,26 +377,28 @@ export default function SongForm({ mode, song, artists, albums, tags }: SongForm
         </Card>
       )}
 
-      {/* ── Publish toggle — tidak berubah ── */}
-      <Card className="bg-zinc-900 border-zinc-800">
-        <CardContent className="p-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-zinc-200">Published</p>
-              <p className="text-xs text-zinc-500 mt-0.5">
-                {form.status === "published" 
-                ? "Visible to public" 
-                : "Draft — not visible to public"}
-              </p>
+      {/* ── Publish toggle — line 371, WRAP dengan role === "admin" ── */}
+      {role === "admin" && (
+        <Card className="bg-zinc-900 border-zinc-800">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-zinc-200">Published</p>
+                <p className="text-xs text-zinc-500 mt-0.5">
+                  {form.status === "published" 
+                  ? "Visible to public" 
+                  : "Draft — not visible to public"}
+                </p>
+              </div>
+              <Switch
+                checked={form.status === "published"}
+                onCheckedChange={(v) => set("status", v ? "published" : "draft")}
+                className="data-[state=checked]:bg-indigo-600"
+              />
             </div>
-            <Switch
-              checked={form.status === "published"}
-              onCheckedChange={(v) => set("status", v ? "published" : "draft")}
-              className="data-[state=checked]:bg-indigo-600"
-            />
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       <Separator className="bg-zinc-800" />
 

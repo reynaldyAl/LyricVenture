@@ -40,9 +40,14 @@ export async function PUT(
   delete body.created_at
   delete body.created_by
 
-  const db = supabase as any  // ✅ fix v2.97
+  if (body.status === 'published' && !body.published_at) {
+    body.published_at = new Date().toISOString()
+  }
+  if (body.status && body.status !== 'published') {
+    body.published_at = null
+  }
 
-  const { data, error } = await db
+  const { data, error } = await supabase
     .from('artists')
     .update(body)
     .eq('slug', slug)
@@ -50,7 +55,7 @@ export async function PUT(
     .single()
 
   if (error) return errorResponse(error.message)
-  if (!data)  return notFound('Artist')
+  if (!data) return notFound('Artist')
   return okResponse(data)
 }
 

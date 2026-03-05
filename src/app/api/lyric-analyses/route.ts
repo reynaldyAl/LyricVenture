@@ -35,8 +35,13 @@ export async function POST(request: Request) {
   const { user, error: authError } = await requireAuth(supabase)
   if (authError) return authError
 
+  // ✅ Cek role
+  const { data: profile } = await supabase
+    .from('profiles').select('role').eq('id', user!.id).single()
+  const isAdmin = profile?.role === 'admin'
+
   const body = await request.json()
-  const { song_id, intro, theme, background, conclusion, status } = body  // ✅ FIX 2
+  const { song_id, intro, theme, background, conclusion, status } = body
 
   if (!song_id) return errorResponse('song_id is required', 400)
 
@@ -48,6 +53,9 @@ export async function POST(request: Request) {
     .from('lyric_analyses').select('id').eq('song_id', song_id).single()
   if (existing) return errorResponse('Lyric analysis already exists for this song', 409)
 
+  // ✅ Admin → published langsung, Author → paksa draft
+  const finalStatus = isAdmin ? (status ?? 'published') : 'draft'
+
   const insert = {
     song_id,
     author_id:    user!.id,
@@ -55,8 +63,8 @@ export async function POST(request: Request) {
     theme:        theme      ?? null,
     background:   background ?? null,
     conclusion:   conclusion ?? null,
-    status:       status     ?? 'draft',                              // ✅ FIX 3
-    published_at: status === 'published' ? new Date().toISOString() : null,  // ✅ FIX 4
+    status:       finalStatus,
+    published_at: finalStatus === 'published' ? new Date().toISOString() : null,
   }
 
   const { data, error } = await supabase

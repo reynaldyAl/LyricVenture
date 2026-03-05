@@ -29,9 +29,10 @@ interface AnalysisFormProps {
   mode:      "create" | "edit";
   analysis?: AnalysisFull;
   songs?:    SongOption[];   // hanya untuk create
+  role?:     "admin" | "author";
 }
 
-export default function AnalysisForm({ mode, analysis, songs }: AnalysisFormProps) {
+export default function AnalysisForm({ mode, analysis, songs, role = "author" }: AnalysisFormProps) {
   const router    = useRouter();
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
@@ -190,24 +191,26 @@ export default function AnalysisForm({ mode, analysis, songs }: AnalysisFormProp
         </CardContent>
       </Card>
 
-      {/* Publish toggle */}
-      <Card className="bg-zinc-900 border-zinc-800">
-        <CardContent className="p-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-zinc-200">Published</p>
-              <p className="text-xs text-zinc-500 mt-0.5">
-                {form.status === "published" ? "Visible to public" : "Draft — not visible to public"}
-              </p>
+      {/* ── Publish toggle — hanya untuk admin ── */}
+      {role === "admin" && (
+        <Card className="bg-zinc-900 border-zinc-800">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-zinc-200">Published</p>
+                <p className="text-xs text-zinc-500 mt-0.5">
+                  {form.status === "published" ? "Visible to public" : "Draft — not visible to public"}
+                </p>
+              </div>
+              <Switch
+                checked={form.status === "published"}
+                onCheckedChange={(v) => set("status", v ? "published" : "draft")}
+                className="data-[state=checked]:bg-indigo-600"
+              />
             </div>
-            <Switch
-              checked={form.status === "published"}
-              onCheckedChange={(v) => set("status", v ? "published" : "draft")}
-              className="data-[state=checked]:bg-indigo-600"
-            />
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="flex items-center gap-3 justify-end">
         <Button type="button" variant="outline" size="sm" onClick={() => router.back()}

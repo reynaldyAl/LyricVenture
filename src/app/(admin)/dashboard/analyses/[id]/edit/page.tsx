@@ -60,9 +60,15 @@ export default async function EditAnalysisPage({
   const analysis = await getAnalysis(id);
   if (!analysis) notFound();
 
+  // ✅ Fetch role
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const { data: profile } = await supabase
+    .from("profiles").select("role").eq("id", user!.id).single();
+  const role = (profile?.role ?? "author") as "admin" | "author";
+
   const song = analysis.songs;
 
-  // ✅ Fix: helper untuk status badge
   const statusStyle =
     analysis.status === "published" ? "border-emerald-800 bg-emerald-900/30 text-emerald-400"
     : analysis.status === "pending" ? "border-amber-800 bg-amber-900/30 text-amber-400"
@@ -71,8 +77,6 @@ export default async function EditAnalysisPage({
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-
-      {/* Header */}
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="sm" asChild
           className="text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 h-8 px-2 text-xs">
@@ -86,29 +90,22 @@ export default async function EditAnalysisPage({
             {song?.artists?.name && ` — ${song.artists.name}`}
           </p>
         </div>
-
-        {/* ✅ Fix: pakai status bukan is_published */}
         <span className={`text-[10px] px-2 py-0.5 border capitalize ${statusStyle}`}>
           {analysis.status ?? "draft"}
         </span>
       </div>
 
-      {/* ── Part 1: Analysis metadata ── */}
       <div className="bg-zinc-900 border border-zinc-800 p-5 space-y-3">
-        <p className="text-xs font-semibold text-zinc-400 uppercase tracking-widest">
-          Overview
-        </p>
+        <p className="text-xs font-semibold text-zinc-400 uppercase tracking-widest">Overview</p>
         <Separator className="bg-zinc-800" />
-        <AnalysisForm mode="edit" analysis={analysis as any} />
+        {/* ✅ Pass role */}
+        <AnalysisForm mode="edit" analysis={analysis as any} role={role} />
       </div>
 
-      {/* ── Part 2: Sections & Highlights ── */}
       <div className="bg-zinc-900 border border-zinc-800 p-5 space-y-3">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs font-semibold text-zinc-400 uppercase tracking-widest">
-              Lyric Sections
-            </p>
+            <p className="text-xs font-semibold text-zinc-400 uppercase tracking-widest">Lyric Sections</p>
             <p className="text-[11px] text-zinc-600 mt-0.5">
               Add sections (verse, chorus…) then highlight phrases with meanings
             </p>

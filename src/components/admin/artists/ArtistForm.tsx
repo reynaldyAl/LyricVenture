@@ -24,20 +24,22 @@ type Artist = {
   cover_image: string | null;
   banner_image: string | null;
   is_active: boolean;
+  status?: string; // ✅ tambah
 };
 
 interface ArtistFormProps {
-  mode: "create" | "edit";
+  mode:    "create" | "edit";
   artist?: Artist;
+  role?:   "admin" | "author"; // ✅ tambah
 }
 
 function slugify(text: string) {
   return text.toLowerCase().replace(/[^\w\s-]/g, "").replace(/[\s_]+/g, "-").replace(/^-+|-+$/g, "");
 }
 
-export default function ArtistForm({ mode, artist }: ArtistFormProps) {
-  const router           = useRouter();
-  const { toast }        = useToast();
+export default function ArtistForm({ mode, artist, role = "author" }: ArtistFormProps) {
+  const router    = useRouter();
+  const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
 
   const [form, setForm] = useState({
@@ -51,6 +53,7 @@ export default function ArtistForm({ mode, artist }: ArtistFormProps) {
     cover_image:    artist?.cover_image    ?? "",
     banner_image:   artist?.banner_image   ?? "",
     is_active:      artist?.is_active      ?? true,
+    status:         artist?.status         ?? "draft", // ✅ tambah
   });
 
   function handleNameChange(value: string) {
@@ -73,23 +76,23 @@ export default function ArtistForm({ mode, artist }: ArtistFormProps) {
         slug:           form.slug.trim(),
         bio:            form.bio || null,
         origin:         form.origin || null,
-        formed_year:    form.formed_year ? Number(form.formed_year) : null,
+        formed_year:    form.formed_year    ? Number(form.formed_year)    : null,
         disbanded_year: form.disbanded_year ? Number(form.disbanded_year) : null,
         genre:          form.genre ? form.genre.split(",").map((g) => g.trim()).filter(Boolean) : [],
-        cover_image:    form.cover_image || null,
+        cover_image:    form.cover_image  || null,
         banner_image:   form.banner_image || null,
         is_active:      form.is_active,
+        status:         form.status, // ✅ tambah
       };
 
       const url    = mode === "create" ? "/api/artists" : `/api/artists/${artist!.slug}`;
       const method = mode === "create" ? "POST" : "PUT";
 
-      const res = await fetch(url, {
+      const res  = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-
       const json = await res.json();
 
       if (res.ok) {
@@ -105,7 +108,7 @@ export default function ArtistForm({ mode, artist }: ArtistFormProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
 
-      {/* ── Basic Info — tidak berubah ── */}
+      {/* ── Basic Info ── */}
       <Card className="bg-zinc-900 border-zinc-800">
         <CardContent className="p-5 space-y-4">
           <p className="text-[10px] uppercase tracking-widest text-zinc-500 font-semibold">Basic Info</p>
@@ -192,11 +195,10 @@ export default function ArtistForm({ mode, artist }: ArtistFormProps) {
         </CardContent>
       </Card>
 
-      {/* ── Images — DIGANTI dengan ImageUpload ── */}
+      {/* ── Images ── */}
       <Card className="bg-zinc-900 border-zinc-800">
         <CardContent className="p-5 space-y-6">
           <p className="text-[10px] uppercase tracking-widest text-zinc-500 font-semibold">Images</p>
-
           <ImageUpload
             value={form.cover_image}
             onChange={(url) => handleChange("cover_image", url)}
@@ -204,7 +206,6 @@ export default function ArtistForm({ mode, artist }: ArtistFormProps) {
             label="Cover Image"
             aspectRatio="square"
           />
-
           <ImageUpload
             value={form.banner_image}
             onChange={(url) => handleChange("banner_image", url)}
@@ -215,7 +216,7 @@ export default function ArtistForm({ mode, artist }: ArtistFormProps) {
         </CardContent>
       </Card>
 
-      {/* ── Active toggle — tidak berubah ── */}
+      {/* ── Active toggle ── */}
       <Card className="bg-zinc-900 border-zinc-800">
         <CardContent className="p-5">
           <div className="flex items-center justify-between">
@@ -232,6 +233,29 @@ export default function ArtistForm({ mode, artist }: ArtistFormProps) {
         </CardContent>
       </Card>
 
+      {/* ✅ Publish toggle — hanya untuk admin */}
+      {role === "admin" && (
+        <Card className="bg-zinc-900 border-zinc-800">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-zinc-200">Published</p>
+                <p className="text-xs text-zinc-500 mt-0.5">
+                  {form.status === "published"
+                    ? "Visible to public"
+                    : "Draft — not visible to public"}
+                </p>
+              </div>
+              <Switch
+                checked={form.status === "published"}
+                onCheckedChange={(v) => handleChange("status", v ? "published" : "draft")}
+                className="data-[state=checked]:bg-indigo-600"
+              />
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Separator className="bg-zinc-800" />
 
       <div className="flex items-center gap-3 justify-end">
@@ -243,8 +267,7 @@ export default function ArtistForm({ mode, artist }: ArtistFormProps) {
           className="bg-indigo-600 hover:bg-indigo-700 text-white h-9 px-6 min-w-[100px]">
           {isPending
             ? (mode === "create" ? "Creating..." : "Saving...")
-            : (mode === "create" ? "Create Artist" : "Save Changes")
-          }
+            : (mode === "create" ? "Create Artist" : "Save Changes")}
         </Button>
       </div>
     </form>

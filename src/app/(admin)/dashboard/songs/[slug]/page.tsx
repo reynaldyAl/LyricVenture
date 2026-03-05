@@ -34,7 +34,6 @@ export default async function EditSongPage({
   const { slug } = await params;
   const supabase = await createClient();
 
-  //  Step 1: fetch song dulu — sequential, bukan nested Promise
   const { data: songRaw, error } = await supabase
     .from("songs")
     .select("*")
@@ -44,30 +43,27 @@ export default async function EditSongPage({
   const song = songRaw as SongFull | null;
   if (!song || error) notFound();
 
-  // Step 2: sekarang song.id sudah diketahui — bisa parallel
-  const [{ data: currentTags }, formOptions] = await Promise.all([
-    supabase
-      .from("song_tags")
-      .select("tag_id")
-      .eq("song_id", song.id),
+  // ✅ Fetch role + tags — parallel
+  const [{ data: currentTags }, formOptions, { data: { user } }] = await Promise.all([
+    supabase.from("song_tags").select("tag_id").eq("song_id", song.id),
     getFormOptions(),
+    supabase.auth.getUser(),
   ]);
+
+  const { data: profile } = await supabase
+    .from("profiles").select("role").eq("id", user!.id).single();
+  const role = (profile?.role ?? "author") as "admin" | "author";
 
   const current_tag_ids = (currentTags ?? []).map(
     (t: { tag_id: string }) => t.tag_id
   );
-
   const songWithTags: SongWithTags = { ...song, current_tag_ids };
 
   return (
     <div className="max-w-2xl mx-auto space-y-5">
       <div className="flex items-center gap-3">
-        <Button
-          variant="ghost"
-          size="sm"
-          asChild
-          className="text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 h-8 px-2 text-xs"
-        >
+        <Button variant="ghost" size="sm" asChild
+          className="text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 h-8 px-2 text-xs">
           <Link href="/dashboard/songs">← Back</Link>
         </Button>
         <Separator orientation="vertical" className="h-4 bg-zinc-700" />
@@ -76,13 +72,14 @@ export default async function EditSongPage({
           <p className="text-xs text-zinc-500">{song.title}</p>
         </div>
       </div>
-
+      {/* ✅ Pass role */}
       <SongForm
         mode="edit"
         song={songWithTags}
         artists={formOptions.artists}
         albums={formOptions.albums}
         tags={formOptions.tags}
+        role={role}
       />
     </div>
   );

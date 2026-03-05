@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch"; // ✅ tambah
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -13,16 +14,17 @@ import {
   SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import ImageUpload from "@/components/admin/ImageUpload";  // ✅ tambah import
+import ImageUpload from "@/components/admin/ImageUpload";
 import type { Tables } from "@/lib/types";
 
 type AlbumFull    = Tables<"albums">;
 type ArtistOption = Pick<Tables<"artists">, "id" | "name" | "slug">;
 
 interface AlbumFormProps {
-  mode:     "create" | "edit";
-  album?:   AlbumFull;
-  artists:  ArtistOption[];
+  mode:    "create" | "edit";
+  album?:  AlbumFull;
+  artists: ArtistOption[];
+  role?:   "admin" | "author"; // ✅ tambah
 }
 
 function slugify(text: string) {
@@ -31,9 +33,9 @@ function slugify(text: string) {
 
 const ALBUM_TYPES = ["album", "ep", "single", "compilation", "live"] as const;
 
-export default function AlbumForm({ mode, album, artists }: AlbumFormProps) {
-  const router        = useRouter();
-  const { toast }     = useToast();
+export default function AlbumForm({ mode, album, artists, role = "author" }: AlbumFormProps) {
+  const router    = useRouter();
+  const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
 
   const [form, setForm] = useState({
@@ -45,9 +47,10 @@ export default function AlbumForm({ mode, album, artists }: AlbumFormProps) {
     album_type:   album?.album_type   ?? "album",
     total_tracks: album?.total_tracks?.toString() ?? "",
     cover_image:  album?.cover_image  ?? "",
+    status:       album?.status       ?? "draft", // ✅ tambah
   });
 
-  function set(key: string, value: string) {
+  function set(key: string, value: string | boolean) {
     setForm((f) => ({ ...f, [key]: value }));
   }
 
@@ -76,6 +79,7 @@ export default function AlbumForm({ mode, album, artists }: AlbumFormProps) {
         album_type:   form.album_type,
         total_tracks: form.total_tracks ? Number(form.total_tracks) : null,
         cover_image:  form.cover_image || null,
+        status:       form.status, // ✅ tambah
       };
 
       const url    = mode === "create" ? "/api/albums" : `/api/albums/${album!.slug}`;
@@ -90,7 +94,7 @@ export default function AlbumForm({ mode, album, artists }: AlbumFormProps) {
 
       if (res.ok) {
         toast({
-          title: mode === "create" ? "Album created!" : "Album updated!",
+          title:       mode === "create" ? "Album created!" : "Album updated!",
           description: payload.title,
         });
         router.push("/dashboard/albums");
@@ -104,7 +108,7 @@ export default function AlbumForm({ mode, album, artists }: AlbumFormProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
 
-      {/* ── Basic Info — tidak berubah ── */}
+      {/* ── Basic Info ── */}
       <Card className="bg-zinc-900 border-zinc-800">
         <CardContent className="p-5 space-y-4">
           <p className="text-[10px] uppercase tracking-widest text-zinc-500 font-semibold">Basic Info</p>
@@ -205,7 +209,7 @@ export default function AlbumForm({ mode, album, artists }: AlbumFormProps) {
         </CardContent>
       </Card>
 
-      {/* ── Cover Image — DIGANTI dengan ImageUpload ── */}
+      {/* ── Cover Image ── */}
       <Card className="bg-zinc-900 border-zinc-800">
         <CardContent className="p-5 space-y-4">
           <p className="text-[10px] uppercase tracking-widest text-zinc-500 font-semibold">Cover Image</p>
@@ -219,9 +223,31 @@ export default function AlbumForm({ mode, album, artists }: AlbumFormProps) {
         </CardContent>
       </Card>
 
+      {/* ✅ Publish toggle — hanya untuk admin */}
+      {role === "admin" && (
+        <Card className="bg-zinc-900 border-zinc-800">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-zinc-200">Published</p>
+                <p className="text-xs text-zinc-500 mt-0.5">
+                  {form.status === "published"
+                    ? "Visible to public"
+                    : "Draft — not visible to public"}
+                </p>
+              </div>
+              <Switch
+                checked={form.status === "published"}
+                onCheckedChange={(v) => set("status", v ? "published" : "draft")}
+                className="data-[state=checked]:bg-indigo-600"
+              />
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Separator className="bg-zinc-800" />
 
-      {/* ── Actions — tidak berubah ── */}
       <div className="flex items-center gap-3 justify-end">
         <Button type="button" variant="outline" size="sm" onClick={() => router.back()}
           className="border-zinc-700 text-zinc-300 hover:bg-zinc-800 h-9">

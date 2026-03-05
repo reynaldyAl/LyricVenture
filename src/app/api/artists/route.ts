@@ -24,18 +24,26 @@ export async function POST(request: Request) {
   const { user, error: authError } = await requireAuth(supabase)
   if (authError) return authError
 
+  // ✅ Cek role
+  const { data: profile } = await supabase
+    .from('profiles').select('role').eq('id', user!.id).single()
+  const isAdmin = profile?.role === 'admin'
+
   const body = await request.json()
   const {
     name, slug, bio, origin, formed_year, disbanded_year,
     genre, cover_image, banner_image, social_links,
-    meta_title, meta_description,
+    meta_title, meta_description, status,
   } = body
 
   if (!name?.trim() || !slug?.trim()) {
     return errorResponse('name and slug are required', 400)
   }
 
-  const db = supabase as any  // ✅ fix v2.97
+  // ✅ Admin → published langsung, Author → paksa draft
+  const finalStatus = isAdmin ? (status ?? 'published') : 'draft'
+
+  const db = supabase as any
 
   const { data, error } = await db
     .from('artists')
@@ -52,6 +60,8 @@ export async function POST(request: Request) {
       social_links:     social_links     ?? {},
       meta_title:       meta_title       ?? null,
       meta_description: meta_description ?? null,
+      status:           finalStatus,
+      published_at:     finalStatus === 'published' ? new Date().toISOString() : null,
       created_by:       user!.id,
     })
     .select()

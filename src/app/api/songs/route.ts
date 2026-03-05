@@ -46,6 +46,11 @@ export async function POST(request: Request) {
   const { user, error: authError } = await requireAuth(supabase)
   if (authError) return authError
 
+  // ✅ Cek role
+  const { data: profile } = await supabase
+    .from('profiles').select('role').eq('id', user!.id).single()
+  const isAdmin = profile?.role === 'admin'
+
   const body = await request.json()
   const {
     artist_id, album_id, title, slug,
@@ -59,7 +64,10 @@ export async function POST(request: Request) {
     return errorResponse('artist_id, title, and slug are required', 400)
   }
 
-  const db = supabase as any  // ✅ fix v2.97
+  // ✅ Admin → published langsung, Author → paksa draft
+  const finalStatus = isAdmin ? (status ?? 'published') : 'draft'
+
+  const db = supabase as any
 
   const { data: song, error } = await db
     .from('songs')
@@ -74,8 +82,8 @@ export async function POST(request: Request) {
       duration_sec:     duration_sec     ?? null,
       cover_image:      cover_image      ?? null,
       language:         language         ?? 'en',
-      status:           status           ?? 'draft',  // ✅ FIX — default ke draft, bukan langsung published
-      published_at:     status          === 'published' ? new Date().toISOString() : null,
+      status:           finalStatus,
+      published_at:     finalStatus === 'published' ? new Date().toISOString() : null,
       meta_title:       meta_title       ?? null,
       meta_description: meta_description ?? null,
       og_image:         og_image         ?? null,
@@ -89,7 +97,6 @@ export async function POST(request: Request) {
     return errorResponse(error.message)
   }
 
-  // Insert tags jika ada
   if (tag_ids?.length > 0) {
     const songTags = tag_ids.map((tag_id: string) => ({ song_id: song.id, tag_id }))
     await (supabase as any).from('song_tags').insert(songTags)

@@ -29,11 +29,16 @@ export async function POST(request: Request) {
   const { user, error: authError } = await requireAuth(supabase)
   if (authError) return authError
 
+  // ✅ Cek role
+  const { data: profile } = await supabase
+    .from('profiles').select('role').eq('id', user!.id).single()
+  const isAdmin = profile?.role === 'admin'
+
   const body = await request.json()
   const {
     artist_id, title, slug, release_date,
     cover_image, description, album_type, total_tracks,
-    meta_title, meta_description,
+    meta_title, meta_description, status,
   } = body
 
   if (!artist_id || !title?.trim() || !slug?.trim()) {
@@ -44,7 +49,10 @@ export async function POST(request: Request) {
     .from('artists').select('id').eq('id', artist_id).single()
   if (!artist) return errorResponse('Artist not found', 404)
 
-  const db = supabase as any  // ✅ fix v2.97
+  // ✅ Admin → published langsung, Author → paksa draft
+  const finalStatus = isAdmin ? (status ?? 'published') : 'draft'
+
+  const db = supabase as any
 
   const { data, error } = await db
     .from('albums')
@@ -59,6 +67,8 @@ export async function POST(request: Request) {
       total_tracks:     total_tracks     ?? null,
       meta_title:       meta_title       ?? null,
       meta_description: meta_description ?? null,
+      status:           finalStatus,
+      published_at:     finalStatus === 'published' ? new Date().toISOString() : null,
       created_by:       user!.id,
     })
     .select()

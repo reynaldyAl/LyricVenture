@@ -36,6 +36,12 @@ export default async function EditAlbumPage({
   const album = data as AlbumFull | null;
   if (!album || error) notFound();
 
+  // ✅ Fetch role
+  const { data: { user } } = await supabase.auth.getUser();
+  const { data: profile } = await supabase
+    .from("profiles").select("role").eq("id", user!.id).single();
+  const role = (profile?.role ?? "author") as "admin" | "author";
+
   const artists = await getArtistOptions();
 
   return (
@@ -51,7 +57,8 @@ export default async function EditAlbumPage({
           <p className="text-xs text-zinc-500">{album.title}</p>
         </div>
       </div>
-      <AlbumForm mode="edit" album={album} artists={artists} />
+      {/* ✅ Pass role */}
+      <AlbumForm mode="edit" album={album} artists={artists} role={role} />
     </div>
   );
 }

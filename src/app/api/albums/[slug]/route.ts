@@ -42,7 +42,16 @@ export async function PUT(
   delete body.created_at
   delete body.created_by
 
-  const db = supabase as any  // ✅ fix v2.97
+  // ✅ Fix — set published_at ketika status berubah ke published
+  if (body.status === 'published' && !body.published_at) {
+    body.published_at = new Date().toISOString()
+  }
+  // ✅ Fix — reset published_at ketika status bukan published
+  if (body.status && body.status !== 'published') {
+    body.published_at = null
+  }
+
+  const db = supabase as any
 
   const { data, error } = await db
     .from('albums')
