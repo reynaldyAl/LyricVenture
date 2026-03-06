@@ -21,24 +21,26 @@ function HighlightedContent({
   }
 
   // Sort highlights by start_index
-  const sorted = [...highlights].sort((a, b) => a.start_index - b.start_index);
+  const sorted = [...highlights].sort(
+    (a, b) => (a.start_index ?? 0) - (b.start_index ?? 0)
+  );
 
   // Build segments: plain text + highlighted spans
   const segments: { text: string; highlight?: Highlight }[] = [];
   let cursor = 0;
 
   for (const hl of sorted) {
-    if (hl.start_index > cursor) {
-      segments.push({ text: content.slice(cursor, hl.start_index) });
+    const start = hl.start_index ?? 0;
+    const end   = hl.end_index   ?? 0;
+
+    if (start > cursor) {
+      segments.push({ text: content.slice(cursor, start) });
     }
     segments.push({
-      text: content.slice(hl.start_index, hl.end_index),
+      text: content.slice(start, end),
       highlight: hl,
     });
-    cursor = hl.end_index;
-  }
-  if (cursor < content.length) {
-    segments.push({ text: content.slice(cursor) });
+    cursor = end;
   }
 
   return (

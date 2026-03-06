@@ -13,6 +13,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import SubmitForReviewButton from "@/components/admin/SubmitForReviewButton";
 import type { Tables } from "@/lib/types";
 
 type AnalysisFull = Tables<"lyric_analyses"> & {
@@ -28,7 +29,7 @@ type SongOption = Pick<Tables<"songs">, "id" | "title" | "slug"> & {
 interface AnalysisFormProps {
   mode:      "create" | "edit";
   analysis?: AnalysisFull;
-  songs?:    SongOption[];   // hanya untuk create
+  songs?:    SongOption[];
   role?:     "admin" | "author";
 }
 
@@ -38,12 +39,12 @@ export default function AnalysisForm({ mode, analysis, songs, role = "author" }:
   const [isPending, startTransition] = useTransition();
 
   const [form, setForm] = useState({
-    song_id:      analysis?.song_id    ?? "",
-    intro:        analysis?.intro      ?? "",
-    theme:        analysis?.theme      ?? "",
-    background:   analysis?.background ?? "",
-    conclusion:   analysis?.conclusion ?? "",
-    status:       analysis?.status     ?? "draft",
+    song_id:    analysis?.song_id    ?? "",
+    intro:      analysis?.intro      ?? "",
+    theme:      analysis?.theme      ?? "",
+    background: analysis?.background ?? "",
+    conclusion: analysis?.conclusion ?? "",
+    status:     analysis?.status     ?? "draft",
   });
 
   function set(key: string, value: string | boolean) {
@@ -59,11 +60,11 @@ export default function AnalysisForm({ mode, analysis, songs, role = "author" }:
 
     startTransition(async () => {
       const payload = {
-        intro:        form.intro       || null,
-        theme:        form.theme       || null,
-        background:   form.background  || null,
-        conclusion:   form.conclusion  || null,
-        status:       form.status,
+        intro:      form.intro      || null,
+        theme:      form.theme      || null,
+        background: form.background || null,
+        conclusion: form.conclusion || null,
+        status:     form.status,
         ...(mode === "create" ? { song_id: form.song_id } : {}),
       };
 
@@ -82,12 +83,9 @@ export default function AnalysisForm({ mode, analysis, songs, role = "author" }:
       if (res.ok) {
         toast({
           title: mode === "create" ? "Analysis created!" : "Analysis updated!",
-          description: mode === "create"
-            ? "Now add lyric sections below."
-            : "Changes saved.",
+          description: mode === "create" ? "Now add lyric sections below." : "Changes saved.",
         });
         if (mode === "create") {
-          // Redirect ke edit page agar bisa tambah sections
           router.push(`/dashboard/analyses/${json.id}/edit`);
         } else {
           router.refresh();
@@ -100,13 +98,13 @@ export default function AnalysisForm({ mode, analysis, songs, role = "author" }:
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+
+      {/* ── Song select / info ── */}
       <Card className="bg-zinc-900 border-zinc-800">
         <CardContent className="p-5 space-y-4">
           <p className="text-[10px] uppercase tracking-widest text-zinc-500 font-semibold">
             {mode === "create" ? "Select Song" : "Song"}
           </p>
-
-          {/* Song — select (create) or read-only (edit) */}
           {mode === "create" ? (
             <div className="space-y-1.5">
               <Label className="text-xs text-zinc-400">
@@ -138,11 +136,11 @@ export default function AnalysisForm({ mode, analysis, songs, role = "author" }:
         </CardContent>
       </Card>
 
+      {/* ── Analysis Content ── */}
       <Card className="bg-zinc-900 border-zinc-800">
         <CardContent className="p-5 space-y-4">
           <p className="text-[10px] uppercase tracking-widest text-zinc-500 font-semibold">Analysis Content</p>
 
-          {/* Theme */}
           <div className="space-y-1.5">
             <Label className="text-xs text-zinc-400">Theme</Label>
             <Input
@@ -153,7 +151,6 @@ export default function AnalysisForm({ mode, analysis, songs, role = "author" }:
             />
           </div>
 
-          {/* Intro */}
           <div className="space-y-1.5">
             <Label className="text-xs text-zinc-400">Introduction</Label>
             <Textarea
@@ -165,7 +162,6 @@ export default function AnalysisForm({ mode, analysis, songs, role = "author" }:
             />
           </div>
 
-          {/* Background */}
           <div className="space-y-1.5">
             <Label className="text-xs text-zinc-400">Background</Label>
             <Textarea
@@ -177,7 +173,6 @@ export default function AnalysisForm({ mode, analysis, songs, role = "author" }:
             />
           </div>
 
-          {/* Conclusion */}
           <div className="space-y-1.5">
             <Label className="text-xs text-zinc-400">Conclusion</Label>
             <Textarea
@@ -191,7 +186,7 @@ export default function AnalysisForm({ mode, analysis, songs, role = "author" }:
         </CardContent>
       </Card>
 
-      {/* ── Publish toggle — hanya untuk admin ── */}
+      {/* ── Admin: Publish toggle ── */}
       {role === "admin" && (
         <Card className="bg-zinc-900 border-zinc-800">
           <CardContent className="p-5">
@@ -211,6 +206,42 @@ export default function AnalysisForm({ mode, analysis, songs, role = "author" }:
           </CardContent>
         </Card>
       )}
+
+      {/* ── Author: Submit for Review button (edit mode only) ── */}
+      {role === "author" && mode === "edit" && analysis && (
+        <Card className="bg-zinc-900 border-zinc-800">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-zinc-200">Review Status</p>
+                <p className="text-xs text-zinc-500 mt-0.5">
+                  {form.status === "pending"
+                    ? "Waiting for admin review"
+                    : form.status === "rejected"
+                    ? "Rejected — edit and resubmit"
+                    : form.status === "published"
+                    ? "Published and visible to public"
+                    : "Draft — submit for review when ready"}
+                </p>
+                {/* Reject reason */}
+                {form.status === "rejected" && analysis.reject_reason && (
+                  <p className="text-xs text-red-400 mt-1.5 border border-red-800/40 bg-red-900/20 px-2 py-1 rounded">
+                    ✗ Reason: {analysis.reject_reason}
+                  </p>
+                )}
+              </div>
+              <SubmitForReviewButton
+                table="lyric_analyses"
+                id={analysis.id}
+                status={analysis.status}
+                revalidate="/dashboard/analyses"
+              />
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <Separator className="bg-zinc-800" />
 
       <div className="flex items-center gap-3 justify-end">
         <Button type="button" variant="outline" size="sm" onClick={() => router.back()}
