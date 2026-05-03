@@ -47,7 +47,7 @@ export default function VinylCard({ name, slug, coverImage, origin, genre }: Vin
           style={{ background: "radial-gradient(circle at 35% 35%, white 0%, transparent 70%)" }}
         />
       </div>
-
+          
       {/* Name */}
       <div className="text-center">
         <p className="text-[13px] font-semibold text-[#1A1917] group-hover:text-[#3B5BDB] transition-colors leading-tight max-w-[90px] truncate">

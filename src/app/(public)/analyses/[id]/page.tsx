@@ -52,6 +52,15 @@ async function getAnalysis(id: string): Promise<AnalysisFull | null> {
   };
 }
 
+    function formatDate(dateStr: string | null): string {
+      if (!dateStr) return "";
+      return new Date(dateStr).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+    }
+
 // ── SEO ───────────────────────────────────────────────────
 export async function generateMetadata({
   params,
@@ -98,13 +107,18 @@ export default async function AnalysisDetailPage({
   const year   = song?.release_date
     ? new Date(song.release_date).getFullYear()
     : null;
+  const publishedLabel = formatDate(analysis.published_at ?? null);
 
   return (
     <div style={{ background: "#F4F3F0", color: "#1A1917" }}>
 
       {/* ── Header ── */}
-      <div className="border-b border-[#E2E0DB]" style={{ background: "#FFFFFF" }}>
-        <div className="container mx-auto px-6 py-10 max-w-3xl">
+      <section className="relative overflow-hidden border-b border-[#E2E0DB] bg-white">
+        <div className="absolute inset-0">
+          <div className="absolute -top-20 -right-24 h-72 w-72 rounded-full bg-[#3B5BDB]/10 blur-3xl" />
+          <div className="absolute -bottom-24 -left-24 h-72 w-72 rounded-full bg-[#1A1917]/8 blur-3xl" />
+        </div>
+        <div className="container relative mx-auto px-6 py-12 max-w-3xl">
 
           {/* Breadcrumb */}
           <nav className="flex items-center gap-2 text-xs text-[#A8A39D] mb-6">
@@ -115,31 +129,31 @@ export default async function AnalysisDetailPage({
             <span className="text-[#5A5651] truncate max-w-[200px]">{song?.title}</span>
           </nav>
 
-          <div className="flex gap-5 items-start">
+          <div className="flex gap-6 items-start">
             {/* Cover */}
             {song?.cover_image && (
-              <div className="relative w-20 h-20 shrink-0 shadow-md overflow-hidden">
+              <div className="relative w-24 h-24 md:w-28 md:h-28 shrink-0 rounded-md shadow-md overflow-hidden ring-1 ring-black/5">
                 <Image
                   src={song.cover_image}
                   alt={song.title}
                   fill
                   className="object-cover"
-                  sizes="80px"
+                  sizes="112px"
                   priority
                 />
               </div>
             )}
 
             <div className="flex-1 min-w-0">
-              <p className="text-[10px] tracking-[0.4em] uppercase text-[#8A8680] mb-1.5">
+              <p className="text-[10px] tracking-[0.4em] uppercase text-[#8A8680] mb-2">
                 Lyric Analysis
               </p>
-              <h1 className="font-serif font-bold text-2xl md:text-3xl text-[#1A1917] leading-tight">
+              <h1 className="font-serif font-bold text-3xl md:text-[2.6rem] text-[#1A1917] leading-tight">
                 {song?.title ?? "Untitled"}
               </h1>
 
               {/* Artist + album */}
-              <div className="flex items-center gap-2 mt-2 flex-wrap">
+              <div className="flex items-center gap-2 mt-3 flex-wrap">
                 {artist && (
                   <Link
                     href={`/artists/${artist.slug}`}
@@ -161,16 +175,29 @@ export default async function AnalysisDetailPage({
                 )}
               </div>
 
+              <div className="flex items-center gap-2 mt-4 flex-wrap">
+                {song?.language && (
+                  <span className="text-[10px] font-mono uppercase tracking-widest text-[#8A8680] bg-[#F0EDE8] px-2 py-1 rounded">
+                    {song.language}
+                  </span>
+                )}
+                {publishedLabel && (
+                  <span className="text-[10px] tracking-widest uppercase text-[#8A8680] bg-[#F0EDE8] px-2 py-1 rounded">
+                    Published {publishedLabel}
+                  </span>
+                )}
+              </div>
+
               {/* Theme */}
               {analysis.theme && (
-                <p className="mt-3 text-xs text-[#5A5651] italic border-l-2 border-[#C5C2BC] pl-2.5">
+                <p className="mt-4 text-sm text-[#5A5651] italic border-l-2 border-[#C5C2BC] pl-3">
                   Theme: {analysis.theme}
                 </p>
               )}
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
       {/* ── Content ── */}
       <div className="container mx-auto px-6 py-12 max-w-3xl space-y-10">

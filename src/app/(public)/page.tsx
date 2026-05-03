@@ -3,6 +3,7 @@ import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 import VinylCard from "@/components/public/VynilCard";
 import AlbumCard from "@/components/public/AlbumCard";
+import HeroAnalysisCarousel from "@/components/public/HeroAnalysisCarousel";
 
 // ── Data fetching ─────────────────────────────────────────
 async function getHomeData() {
@@ -74,128 +75,77 @@ export default async function HomePage() {
   const restAnalyses = analyses.slice(1);
 
   return (
-    <div style={{ background: "#F4F3F0", color: "#1A1917" }}>
-
+    <div className="bg-[#F5F4F1] text-[#1A1917]">
       {/* ══════════════════════════════════════════════
-          HERO — split layout
+          HERO — elevated editorial
       ══════════════════════════════════════════════ */}
-      <section className="container mx-auto px-6 pt-16 pb-14 max-w-5xl">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+      <section className="relative overflow-hidden">
+        <div className="absolute inset-0">
+          <div className="absolute -top-20 -right-16 h-72 w-72 rounded-full bg-[#3B5BDB]/12 blur-3xl" />
+          <div className="absolute -bottom-24 -left-20 h-72 w-72 rounded-full bg-[#1A1917]/10 blur-3xl" />
+        </div>
+        <div className="container relative mx-auto px-6 pt-20 pb-16 max-w-6xl">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-start">
 
-          {/* Left: editorial text */}
-          <div>
-            <div className="flex items-center gap-2 mb-6">
-              <div className="h-px w-8 bg-[#1A1917]" />
-              <p className="text-[10px] tracking-[0.45em] uppercase text-[#8A8680]">
-                Issue No. 01 · Song &amp; Lyric Meanings
+            {/* Left: editorial text */}
+            <div>
+              <div className="inline-flex items-center gap-3 mb-6 px-3 py-1.5 rounded-full border border-[#E7E4DE] bg-white/60 backdrop-blur">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#3B5BDB]" />
+                <p className="text-[10px] tracking-[0.45em] uppercase text-[#8A8680]">
+                  Issue No. 01 · Song &amp; Lyric Meanings
+                </p>
+              </div>
+
+              <h1 className="text-5xl md:text-[4.2rem] font-bold font-serif leading-[1.01] tracking-tight mb-6">
+                The words<br />
+                <span className="italic text-[#3B5BDB]">behind</span><br />
+                the music.
+              </h1>
+
+              <p className="text-base text-[#5A5651] leading-relaxed mb-8 max-w-md">
+                We decode lyrics — the metaphors, the pain, the joy — so you can
+                hear your favorite songs in a completely new way.
               </p>
-            </div>
 
-            <h1 className="text-5xl md:text-[3.75rem] font-bold font-serif leading-[1.04] tracking-tight mb-6">
-              The words<br />
-              <span className="italic text-[#3B5BDB]">behind</span><br />
-              the music.
-            </h1>
+              {/* CTA buttons */}
+              <div className="flex flex-wrap gap-3 mb-10">
+                <Link href="/songs"
+                  className="px-5 py-2.5 bg-[#1A1917] text-[#F4F3F0] text-sm font-medium hover:bg-[#3B5BDB] transition-colors shadow-[0_10px_30px_-15px_rgba(0,0,0,0.6)] rounded-md">
+                  Browse Songs
+                </Link>
+                <Link href="/analyses"
+                  className="px-5 py-2.5 border border-[#C5C2BC] text-[#5A5651] text-sm hover:border-[#1A1917] hover:text-[#1A1917] transition-colors bg-white/70 backdrop-blur rounded-md">
+                  Read Analyses
+                </Link>
+              </div>
 
-            <p className="text-base text-[#5A5651] leading-relaxed mb-8 max-w-sm">
-              We decode lyrics — the metaphors, the pain, the joy — so you can
-              hear your favorite songs in a completely new way.
-            </p>
-
-            {/* CTA buttons */}
-            <div className="flex flex-wrap gap-3 mb-10">
-              <Link href="/songs"
-                className="px-5 py-2.5 bg-[#1A1917] text-[#F4F3F0] text-sm font-medium hover:bg-[#3B5BDB] transition-colors">
-                Browse Songs
-              </Link>
-              <Link href="/analyses"
-                className="px-5 py-2.5 border border-[#C5C2BC] text-[#5A5651] text-sm hover:border-[#1A1917] hover:text-[#1A1917] transition-colors">
-                Read Analyses
-              </Link>
-            </div>
-
-            {/* Stats strip */}
-            <div className="flex items-center gap-6 pt-6 border-t border-[#E2E0DB]">
-              {[
-                { value: stats.songs,    label: "Songs" },
-                { value: stats.artists,  label: "Artists" },
-                { value: stats.analyses, label: "Analyses" },
-              ].map((s, i) => (
-                <div key={s.label} className="flex items-center gap-6">
-                  {i > 0 && <div className="h-6 w-px bg-[#E2E0DB]" />}
-                  <div>
+              {/* Stats strip */}
+              <div className="grid grid-cols-3 gap-4 pt-6 border-t border-[#E2E0DB]">
+                {[
+                  { value: stats.songs,    label: "Songs" },
+                  { value: stats.artists,  label: "Artists" },
+                  { value: stats.analyses, label: "Analyses" },
+                ].map((s) => (
+                  <div key={s.label} className="rounded-lg border border-[#E7E4DE] bg-white/60 backdrop-blur px-4 py-3">
                     <p className="text-2xl font-bold font-serif text-[#1A1917] leading-none">{s.value}</p>
-                    <p className="text-[10px] text-[#8A8680] uppercase tracking-widest mt-0.5">{s.label}</p>
+                    <p className="text-[10px] text-[#8A8680] uppercase tracking-widest mt-1">{s.label}</p>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
+
+            {/* Right: hero analysis carousel */}
+            <HeroAnalysisCarousel analyses={analyses as any[]} />
           </div>
-
-          {/* Right: hero analysis card */}
-          {heroAnalysis && heroSong ? (
-            <Link href={`/songs/${heroSong.slug}`} className="group block">
-              <div className="relative aspect-[3/4] md:aspect-[4/5] overflow-hidden bg-[#E2E0DB]">
-                {heroSong.cover_image ? (
-                  <Image
-                    src={heroSong.cover_image}
-                    alt={heroSong.title}
-                    fill
-                    className="object-cover group-hover:scale-105 transition-transform duration-700"
-                    priority
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-6xl text-[#A8A39D]">♫</div>
-                )}
-                {/* Overlay gradient */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-
-                {/* Top label */}
-                <div className="absolute top-4 left-4">
-                  <span className="text-[9px] tracking-[0.3em] uppercase text-white/60 bg-black/30 backdrop-blur-sm px-2 py-1">
-                    Featured Analysis
-                  </span>
-                </div>
-
-                {/* Bottom info */}
-                <div className="absolute bottom-0 left-0 right-0 p-6">
-                  <p className="text-[10px] tracking-widest uppercase text-white/50 mb-1.5">
-                    {heroArtist?.name}
-                  </p>
-                  <p className="font-serif font-bold text-2xl text-white leading-tight group-hover:text-[#93C5FD] transition-colors">
-                    {heroSong.title}
-                  </p>
-                  {heroAnalysis.theme && (
-                    <p className="text-sm text-white/60 mt-2 italic leading-snug">
-                      &ldquo;{heroAnalysis.theme}&rdquo;
-                    </p>
-                  )}
-                  <div className="flex items-center gap-1.5 mt-4">
-                    <span className="text-xs text-white/40">Read analysis</span>
-                    <span className="text-white/40">→</span>
-                  </div>
-                </div>
-              </div>
-            </Link>
-          ) : (
-            <div className="aspect-[3/4] md:aspect-[4/5] bg-[#E2E0DB] flex items-center justify-center">
-              <div className="text-center text-[#A8A39D]">
-                <p className="text-5xl mb-3">♫</p>
-                <p className="text-xs italic">Analyses coming soon.</p>
-              </div>
-            </div>
-          )}
         </div>
       </section>
 
       {/* ══════════════════════════════════════════════
-          LATEST ANALYSES — card grid
+          LATEST ANALYSES — premium grid
       ══════════════════════════════════════════════ */}
       {restAnalyses.length > 0 && (
-        <section className="border-t border-[#E2E0DB]" style={{ background: "#FFFFFF" }}>
-          <div className="container mx-auto px-6 py-16 max-w-5xl">
-
-            {/* Section header */}
+        <section className="border-t border-[#E2E0DB] bg-white">
+          <div className="container mx-auto px-6 py-16 max-w-6xl">
             <div className="flex items-end justify-between mb-8">
               <div>
                 <p className="text-[10px] tracking-[0.4em] uppercase text-[#8A8680] mb-1.5">Deep Dives</p>
@@ -206,17 +156,16 @@ export default async function HomePage() {
               </Link>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-px bg-[#E2E0DB]">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
               {restAnalyses.map((analysis: any) => {
                 const song   = analysis.songs as any;
                 const artist = song?.artists as any;
                 return (
                   <Link key={analysis.id} href={`/songs/${song?.slug}`}
-                    className="bg-white p-6 group hover:bg-[#F8F7F4] transition-colors flex flex-col">
+                    className="bg-white p-6 group flex flex-col border border-[#EFEDE8] rounded-2xl shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all">
 
-                    {/* Song info row */}
                     <div className="flex gap-3 mb-4">
-                      <div className="w-12 h-12 bg-[#E8E5E0] shrink-0 overflow-hidden">
+                      <div className="w-12 h-12 bg-[#E8E5E0] shrink-0 overflow-hidden rounded-md">
                         {song?.cover_image
                           ? <Image src={song.cover_image} alt={song.title} width={48} height={48} className="w-full h-full object-cover" />
                           : <div className="w-full h-full flex items-center justify-center text-[#A8A39D] text-lg">✦</div>}
@@ -229,21 +178,18 @@ export default async function HomePage() {
                       </div>
                     </div>
 
-                    {/* Theme */}
                     {analysis.theme && (
                       <p className="text-xs text-[#5A5651] italic mb-2 leading-relaxed">
                         &ldquo;{analysis.theme}&rdquo;
                       </p>
                     )}
 
-                    {/* Intro preview */}
                     {analysis.intro && (
                       <p className="text-xs text-[#8A8680] leading-relaxed line-clamp-3 flex-1">
                         {analysis.intro}
                       </p>
                     )}
 
-                    {/* Read more */}
                     <div className="flex items-center gap-1 mt-4 pt-4 border-t border-[#F0EDE8]">
                       <span className="text-[10px] tracking-wide uppercase text-[#3B5BDB] group-hover:underline">
                         Read analysis
@@ -262,8 +208,8 @@ export default async function HomePage() {
           ARTISTS — vinyl grid
       ══════════════════════════════════════════════ */}
       {artists.length > 0 && (
-        <section className="border-t border-[#E2E0DB]" style={{ background: "#F4F3F0" }}>
-          <div className="container mx-auto px-6 py-16 max-w-5xl">
+        <section className="border-t border-[#E2E0DB] bg-[#F4F3F0]">
+          <div className="container mx-auto px-6 py-16 max-w-6xl">
             <div className="flex items-end justify-between mb-8">
               <div>
                 <p className="text-[10px] tracking-[0.4em] uppercase text-[#8A8680] mb-1.5">The Creators</p>
@@ -294,8 +240,8 @@ export default async function HomePage() {
           ALBUMS — cover grid
       ══════════════════════════════════════════════ */}
       {albums.length > 0 && (
-        <section className="border-t border-[#E2E0DB]" style={{ background: "#FFFFFF" }}>
-          <div className="container mx-auto px-6 py-16 max-w-5xl">
+        <section className="border-t border-[#E2E0DB] bg-white">
+          <div className="container mx-auto px-6 py-16 max-w-6xl">
             <div className="flex items-end justify-between mb-8">
               <div>
                 <p className="text-[10px] tracking-[0.4em] uppercase text-[#8A8680] mb-1.5">Discography</p>
@@ -325,8 +271,8 @@ export default async function HomePage() {
           SONGS — numbered tracklist
       ══════════════════════════════════════════════ */}
       {songs.length > 0 && (
-        <section className="border-t border-[#E2E0DB]" style={{ background: "#F4F3F0" }}>
-          <div className="container mx-auto px-6 py-16 max-w-5xl">
+        <section className="border-t border-[#E2E0DB] bg-[#F4F3F0]">
+          <div className="container mx-auto px-6 py-16 max-w-6xl">
             <div className="flex items-end justify-between mb-6">
               <div>
                 <p className="text-[10px] tracking-[0.4em] uppercase text-[#8A8680] mb-1.5">Now Playing</p>
@@ -335,7 +281,6 @@ export default async function HomePage() {
               <Link href="/songs" className="text-xs text-[#3B5BDB] hover:underline">All songs →</Link>
             </div>
 
-            {/* Column headers */}
             <div className="flex items-center gap-4 px-2 mb-2 border-b border-[#E2E0DB] pb-2">
               <span className="text-[9px] text-[#C0B8AE] w-6 text-right font-mono">#</span>
               <span className="text-[9px] uppercase tracking-widest text-[#C0B8AE] w-10">&nbsp;</span>
@@ -351,9 +296,8 @@ export default async function HomePage() {
                 const tags   = song.song_tags?.map((st: any) => st.tags).filter(Boolean) ?? [];
                 return (
                   <Link key={song.id} href={`/songs/${song.slug}`}
-                    className="flex items-center gap-4 py-2.5 -mx-2 px-2 hover:bg-white transition-colors group rounded">
+                    className="flex items-center gap-4 py-2.5 -mx-2 px-2 hover:bg-white transition-colors group rounded-lg">
 
-                    {/* Number */}
                     <span className="text-xs text-[#C0B8AE] w-6 text-right shrink-0 font-mono tabular-nums group-hover:hidden">
                       {String(i + 1).padStart(2, "0")}
                     </span>
@@ -361,14 +305,12 @@ export default async function HomePage() {
                       ▶
                     </span>
 
-                    {/* Cover */}
-                    <div className="w-10 h-10 bg-[#E2E0DB] shrink-0 overflow-hidden">
+                    <div className="w-10 h-10 bg-[#E2E0DB] shrink-0 overflow-hidden rounded-md">
                       {song.cover_image
                         ? <Image src={song.cover_image} alt={song.title} width={40} height={40} className="w-full h-full object-cover" />
                         : <div className="w-full h-full flex items-center justify-center text-sm text-[#A8A39D]">♫</div>}
                     </div>
 
-                    {/* Title + artist */}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-[#1A1917] truncate group-hover:text-[#3B5BDB] transition-colors">
                         {song.title}
@@ -376,7 +318,6 @@ export default async function HomePage() {
                       <p className="text-xs text-[#8A8680] truncate">{artist?.name}</p>
                     </div>
 
-                    {/* Tags */}
                     <div className="hidden sm:flex items-center gap-1 shrink-0 w-24">
                       {tags.slice(0, 1).map((tag: any) => (
                         <span key={tag.id}
@@ -391,14 +332,12 @@ export default async function HomePage() {
                       ))}
                     </div>
 
-                    {/* View count */}
                     {song.view_count !== null && (
                       <span className="text-[11px] text-[#C0B8AE] shrink-0 hidden md:block w-12 text-right font-mono tabular-nums">
                         {(song.view_count ?? 0).toLocaleString()}
                       </span>
                     )}
 
-                    {/* Duration */}
                     <span className="text-[11px] text-[#C0B8AE] shrink-0 hidden md:block w-12 text-right font-mono tabular-nums">
                       {formatDuration(song.duration_sec) || "—"}
                     </span>
@@ -424,7 +363,7 @@ export default async function HomePage() {
       {/* ══════════════════════════════════════════════
           FOOTER QUOTE
       ══════════════════════════════════════════════ */}
-      <section className="border-t-2 border-[#1A1917] py-20" style={{ background: "#F4F3F0" }}>
+      <section className="border-t-2 border-[#1A1917] py-20 bg-[#F4F3F0]">
         <div className="container mx-auto px-6 max-w-2xl text-center">
           <span className="text-3xl text-[#C5C2BC] block mb-6">❝</span>
           <blockquote className="text-xl md:text-2xl font-serif italic text-[#5A5651] leading-relaxed">
