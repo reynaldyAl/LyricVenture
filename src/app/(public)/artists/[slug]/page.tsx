@@ -2,7 +2,8 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
-import AlbumCard from "@/components/public/AlbumCard";
+import ArtistAlbumsPager from "@/components/public/ArtistAlbumsPager";
+import ArtistSongsPager from "@/components/public/ArtistSongsPager";
 import type { Tables } from "@/lib/types";
 import type { Metadata } from "next";
 
@@ -80,11 +81,6 @@ async function getArtist(slug: string): Promise<ArtistDetail | null> {
 
   if (error || !data) return null;
   return data as ArtistDetail;
-}
-
-function fmt(sec: number | null) {
-  if (!sec) return null;
-  return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`;
 }
 
 export default async function ArtistDetailPage({
@@ -231,20 +227,11 @@ export default async function ArtistDetailPage({
           <div className="container mx-auto px-6 py-12 max-w-5xl">
             <p className="text-[10px] tracking-[0.4em] uppercase text-[#8A8680] mb-2">Discography</p>
             <h2 className="font-serif font-bold text-2xl text-[#1A1917] mb-7">Albums</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-5">
-              {albums.map((album) => (
-                <AlbumCard
-                  key={album.id}
-                  title={album.title}
-                  slug={album.slug}
-                  coverImage={album.cover_image}
-                  artistName={artist.name}
-                  artistSlug={artist.slug}
-                  releaseDate={album.release_date}
-                  albumType={album.album_type}
-                />
-              ))}
-            </div>
+            <ArtistAlbumsPager
+              albums={albums}
+              artistName={artist.name}
+              artistSlug={artist.slug}
+            />
           </div>
         </section>
       )}
@@ -257,77 +244,7 @@ export default async function ArtistDetailPage({
           <div className="container mx-auto px-6 py-12 max-w-5xl">
             <p className="text-[10px] tracking-[0.4em] uppercase text-[#8A8680] mb-2">Songs</p>
             <h2 className="font-serif font-bold text-2xl text-[#1A1917] mb-6">All Songs</h2>
-
-            {/* Column headers */}
-            <div className="grid grid-cols-[2rem_2.5rem_1fr_6rem_4rem] gap-3 items-center px-3 pb-2 border-b border-[#E2E0DB]">
-              <span className="text-[9px] text-[#C0B8AE] text-right font-mono">#</span>
-              <span />
-              <span className="text-[9px] uppercase tracking-widest text-[#C0B8AE]">Title</span>
-              <span className="text-[9px] uppercase tracking-widest text-[#C0B8AE] hidden sm:block">Tags</span>
-              <span className="text-[9px] uppercase tracking-widest text-[#C0B8AE] text-right hidden md:block">Time</span>
-            </div>
-
-            <div className="divide-y divide-[#E2E0DB]">
-              {publishedSongs.map((song, i) => {
-                const tags = song.song_tags.map((st) => st.tags).filter(Boolean) as NonNullable<typeof song.song_tags[0]["tags"]>[];
-                return (
-                  <Link
-                    key={song.id}
-                    href={`/songs/${song.slug}`}
-                    className="grid grid-cols-[2rem_2.5rem_1fr_6rem_4rem] gap-3 items-center -mx-3 px-3 py-3 hover:bg-[#F4F3F0] transition-colors group"
-                  >
-                    {/* Number / play */}
-                    <span className="text-xs text-[#C0B8AE] text-right font-mono group-hover:hidden tabular-nums">
-                      {String(i + 1).padStart(2, "0")}
-                    </span>
-                    <span className="text-sm text-[#3B5BDB] text-right hidden group-hover:block">▶</span>
-
-                    {/* Cover */}
-                    <div className="w-10 h-10 bg-[#E2E0DB] overflow-hidden shrink-0">
-                      {song.cover_image ? (
-                        <Image src={song.cover_image} alt={song.title} width={40} height={40} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-[#A8A39D] text-sm">♫</div>
-                      )}
-                    </div>
-
-                    {/* Title */}
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-[#1A1917] truncate group-hover:text-[#3B5BDB] transition-colors">
-                        {song.title}
-                      </p>
-                      {(song.view_count ?? 0) > 0 && (
-                        <p className="text-[10px] text-[#C0B8AE] font-mono">
-                          {(song.view_count ?? 0).toLocaleString()} views
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Tags */}
-                    <div className="hidden sm:flex flex-wrap gap-1 items-center">
-                      {tags.slice(0, 1).map((tag) => (
-                        <span
-                          key={tag.id}
-                          className="text-[9px] px-1.5 py-0.5 border uppercase tracking-wide"
-                          style={{
-                            background:  tag.color ? `${tag.color}18` : "#E2E0DB",
-                            borderColor: tag.color ? `${tag.color}40` : "#D5D2CB",
-                            color:       tag.color ?? "#8A8680",
-                          }}
-                        >
-                          {tag.name}
-                        </span>
-                      ))}
-                    </div>
-
-                    {/* Duration */}
-                    <span className="text-[11px] text-[#C0B8AE] text-right font-mono tabular-nums hidden md:block">
-                      {fmt(song.duration_sec) ?? "—"}
-                    </span>
-                  </Link>
-                );
-              })}
-            </div>
+            <ArtistSongsPager songs={publishedSongs} pageSize={4} />
           </div>
         </section>
       )}

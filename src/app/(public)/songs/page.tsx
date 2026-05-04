@@ -48,20 +48,64 @@ async function getSongsData() {
   };
 }
 
+async function getLatestReleaseYear(): Promise<number | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("songs")
+    .select("release_date")
+    .eq("status", "published")
+    .order("release_date", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error("getLatestReleaseYear:", error.message);
+    return null;
+  }
+
+  return data?.release_date ? new Date(data.release_date).getFullYear() : null;
+}
+
 export default async function SongsPage() {
-  const { songs, tags } = await getSongsData();
+  const [{ songs, tags }, latestYear] = await Promise.all([
+    getSongsData(),
+    getLatestReleaseYear(),
+  ]);
   return (
     <div style={{ background: "#F4F3F0", color: "#1A1917" }}>
-      {/* Page header */}
-      <div className="border-b border-[#E2E0DB]" style={{ background: "#FFFFFF" }}>
-        <div className="container mx-auto px-6 py-12 max-w-5xl">
-          <p className="text-[10px] tracking-[0.4em] uppercase text-[#8A8680] mb-2">Library</p>
-          <h1 className="font-serif font-bold text-4xl text-[#1A1917]">Songs</h1>
-          <p className="text-sm text-[#8A8680] mt-2">
-            {songs.length} song{songs.length !== 1 ? "s" : ""} with lyric analyses
-          </p>
+      {/* Header */}
+      <section className="relative overflow-hidden border-b border-[#E2E0DB] bg-white">
+        <div className="absolute inset-0">
+          <div className="absolute -top-20 -right-24 h-72 w-72 rounded-full bg-[#3B5BDB]/10 blur-3xl" />
+          <div className="absolute -bottom-24 -left-24 h-72 w-72 rounded-full bg-[#1A1917]/8 blur-3xl" />
         </div>
-      </div>
+        <div className="container relative mx-auto px-6 py-14 max-w-5xl">
+          <p className="text-[10px] tracking-[0.4em] uppercase text-[#8A8680] mb-2">Library</p>
+          <h1 className="font-serif font-bold text-4xl md:text-[3.25rem] text-[#1A1917]">Songs</h1>
+          <p className="text-sm text-[#6A665F] mt-3 max-w-2xl">
+            Browse songs with lyric analyses, explore tags, and jump to related artists and albums.
+          </p>
+
+          <div className="mt-6 grid grid-cols-2 sm:grid-cols-3 gap-3 max-w-md">
+            <div className="rounded-lg border border-[#E7E4DE] bg-white/70 px-4 py-3">
+              <p className="text-2xl font-bold font-serif text-[#1A1917] leading-none">
+                {songs.length}
+              </p>
+              <p className="text-[10px] text-[#8A8680] uppercase tracking-widest mt-1">
+                Songs
+              </p>
+            </div>
+            <div className="rounded-lg border border-[#E7E4DE] bg-white/70 px-4 py-3">
+              <p className="text-2xl font-bold font-serif text-[#1A1917] leading-none">
+                {latestYear ?? "-"}
+              </p>
+              <p className="text-[10px] text-[#8A8680] uppercase tracking-widest mt-1">
+                Latest Year
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
       {/* Client: search + filter + list */}
       <SongsClient songs={songs} tags={tags} />
     </div>

@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
+import AlbumTracksPager from "@/components/public/AlbumTracksPager";
 import type { Tables } from "@/lib/types";
 import type { Metadata } from "next";
 
@@ -79,11 +80,6 @@ async function getAlbum(slug: string): Promise<AlbumDetail | null> {
   return data as AlbumDetail;
 }
 
-function fmt(sec: number | null) {
-  if (!sec) return null;
-  return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`;
-}
-
 function totalDuration(songs: SongInAlbum[]) {
   const total = songs.reduce((acc, s) => acc + (s.duration_sec ?? 0), 0);
   if (!total) return null;
@@ -113,8 +109,12 @@ export default async function AlbumDetailPage({
       {/* ══════════════════════════════════════════════
           ALBUM HEADER
       ══════════════════════════════════════════════ */}
-      <div className="border-b border-[#E2E0DB]" style={{ background: "#FFFFFF" }}>
-        <div className="container mx-auto px-6 py-12 max-w-5xl">
+      <section className="relative overflow-hidden border-b border-[#E2E0DB] bg-white">
+        <div className="absolute inset-0">
+          <div className="absolute -top-20 -right-24 h-72 w-72 rounded-full bg-[#3B5BDB]/10 blur-3xl" />
+          <div className="absolute -bottom-24 -left-24 h-72 w-72 rounded-full bg-[#1A1917]/8 blur-3xl" />
+        </div>
+        <div className="container relative mx-auto px-6 py-12 max-w-5xl">
 
           {/* Breadcrumb */}
           <nav className="flex items-center gap-2 text-xs text-[#8A8680] mb-8">
@@ -133,7 +133,7 @@ export default async function AlbumDetailPage({
 
           <div className="flex flex-col sm:flex-row gap-8 items-start">
             {/* Cover */}
-            <div className="w-44 h-44 sm:w-52 sm:h-52 bg-[#E2E0DB] shrink-0 overflow-hidden shadow-lg">
+            <div className="w-44 h-44 sm:w-52 sm:h-52 bg-[#E2E0DB] shrink-0 overflow-hidden shadow-lg ring-1 ring-black/5">
               {album.cover_image ? (
                 <Image
                   src={album.cover_image}
@@ -152,6 +152,7 @@ export default async function AlbumDetailPage({
 
             {/* Info */}
             <div className="flex-1 min-w-0">
+              <p className="text-[10px] tracking-[0.4em] uppercase text-[#8A8680] mb-2">Album</p>
               {/* Type badge */}
               {album.album_type && album.album_type !== "album" && (
                 <span className="text-[9px] uppercase tracking-widest px-2 py-0.5 border border-[#D5D2CB] text-[#8A8680] inline-block mb-3">
@@ -182,20 +183,31 @@ export default async function AlbumDetailPage({
               )}
 
               {/* Meta */}
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-3 text-xs text-[#8A8680]">
-                {year && <span>{year}</span>}
-                <span>{publishedSongs.length} track{publishedSongs.length !== 1 ? "s" : ""}</span>
-                {duration && <span>{duration}</span>}
-                {album.description && (
-                  <p className="text-sm text-[#5A5651] leading-relaxed mt-4 max-w-lg w-full">
-                    {album.description}
-                  </p>
+              <div className="flex flex-wrap items-center gap-2 mt-4 text-xs text-[#8A8680]">
+                {year && (
+                  <span className="uppercase tracking-widest font-mono text-[10px] px-2 py-1 bg-[#F0EDE8] text-[#8A8680]">
+                    {year}
+                  </span>
+                )}
+                <span className="uppercase tracking-widest font-mono text-[10px] px-2 py-1 bg-[#F0EDE8] text-[#8A8680]">
+                  {publishedSongs.length} track{publishedSongs.length !== 1 ? "s" : ""}
+                </span>
+                {duration && (
+                  <span className="uppercase tracking-widest font-mono text-[10px] px-2 py-1 bg-[#F0EDE8] text-[#8A8680]">
+                    {duration}
+                  </span>
                 )}
               </div>
+
+              {album.description && (
+                <p className="text-sm text-[#5A5651] leading-relaxed mt-4 max-w-2xl">
+                  {album.description}
+                </p>
+              )}
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
       {/* ══════════════════════════════════════════════
           TRACKLIST
@@ -213,74 +225,7 @@ export default async function AlbumDetailPage({
           </div>
         ) : (
           <div>
-            {/* Column headers */}
-            <div className="grid grid-cols-[2rem_2.5rem_1fr_6rem_4rem] gap-3 items-center px-3 pb-2 border-b border-[#E2E0DB]">
-              <span className="text-[9px] text-[#C0B8AE] text-right font-mono">#</span>
-              <span />
-              <span className="text-[9px] uppercase tracking-widest text-[#C0B8AE]">Title</span>
-              <span className="text-[9px] uppercase tracking-widest text-[#C0B8AE] hidden sm:block">Tags</span>
-              <span className="text-[9px] uppercase tracking-widest text-[#C0B8AE] text-right hidden md:block">Time</span>
-            </div>
-
-            <div className="divide-y divide-[#E2E0DB]">
-              {publishedSongs.map((song, i) => {
-                const tags = song.song_tags.map((st) => st.tags).filter(Boolean) as NonNullable<typeof song.song_tags[0]["tags"]>[];
-                return (
-                  <Link
-                    key={song.id}
-                    href={`/songs/${song.slug}`}
-                    className="grid grid-cols-[2rem_2.5rem_1fr_6rem_4rem] gap-3 items-center -mx-3 px-3 py-3 hover:bg-white transition-colors group"
-                  >
-                    {/* Number / play */}
-                    <span className="text-xs text-[#C0B8AE] text-right font-mono group-hover:hidden tabular-nums">
-                      {String(i + 1).padStart(2, "0")}
-                    </span>
-                    <span className="text-sm text-[#3B5BDB] text-right hidden group-hover:block">▶</span>
-
-                    {/* Cover */}
-                    <div className="w-10 h-10 bg-[#E2E0DB] overflow-hidden shrink-0">
-                      {song.cover_image ? (
-                        <Image src={song.cover_image} alt={song.title} width={40} height={40} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-[#A8A39D] text-sm">♫</div>
-                      )}
-                    </div>
-
-                    {/* Title */}
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-[#1A1917] truncate group-hover:text-[#3B5BDB] transition-colors">
-                        {song.title}
-                      </p>
-                      {song.spotify_track_id && (
-                        <p className="text-[10px] text-[#1DB954]">● Spotify</p>
-                      )}
-                    </div>
-
-                    {/* Tags */}
-                    <div className="hidden sm:flex gap-1 items-center">
-                      {tags.slice(0, 1).map((tag) => (
-                        <span
-                          key={tag.id}
-                          className="text-[9px] px-1.5 py-0.5 border uppercase tracking-wide"
-                          style={{
-                            background:  tag.color ? `${tag.color}18` : "#E2E0DB",
-                            borderColor: tag.color ? `${tag.color}40` : "#D5D2CB",
-                            color:       tag.color ?? "#8A8680",
-                          }}
-                        >
-                          {tag.name}
-                        </span>
-                      ))}
-                    </div>
-
-                    {/* Duration */}
-                    <span className="text-[11px] text-[#C0B8AE] text-right font-mono tabular-nums hidden md:block">
-                      {fmt(song.duration_sec) ?? "—"}
-                    </span>
-                  </Link>
-                );
-              })}
-            </div>
+            <AlbumTracksPager songs={publishedSongs} pageSize={4} />
 
             {/* Total duration */}
             {duration && (

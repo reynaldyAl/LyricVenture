@@ -33,18 +33,45 @@ async function getArtists(): Promise<ArtistItem[]> {
 
 export default async function ArtistsPage() {
   const artists = await getArtists();
+  const latestYear = artists.reduce((acc, artist) => {
+    const year = artist.formed_year ?? 0;
+    return year > acc ? year : acc;
+  }, 0) || null;
   return (
     <div style={{ background: "#F4F3F0", color: "#1A1917" }}>
-      {/* Page header */}
-      <div className="border-b border-[#E2E0DB]" style={{ background: "#FFFFFF" }}>
-        <div className="container mx-auto px-6 py-12 max-w-5xl">
-          <p className="text-[10px] tracking-[0.4em] uppercase text-[#8A8680] mb-2">Creators</p>
-          <h1 className="font-serif font-bold text-4xl text-[#1A1917]">Artists</h1>
-          <p className="text-sm text-[#8A8680] mt-2">
-            {artists.length} artist{artists.length !== 1 ? "s" : ""}
-          </p>
+      {/* Header */}
+      <section className="relative overflow-hidden border-b border-[#E2E0DB] bg-white">
+        <div className="absolute inset-0">
+          <div className="absolute -top-20 -right-24 h-72 w-72 rounded-full bg-[#3B5BDB]/10 blur-3xl" />
+          <div className="absolute -bottom-24 -left-24 h-72 w-72 rounded-full bg-[#1A1917]/8 blur-3xl" />
         </div>
-      </div>
+        <div className="container relative mx-auto px-6 py-14 max-w-5xl">
+          <p className="text-[10px] tracking-[0.4em] uppercase text-[#8A8680] mb-2">Creators</p>
+          <h1 className="font-serif font-bold text-4xl md:text-[3.25rem] text-[#1A1917]">Artists</h1>
+          <p className="text-sm text-[#6A665F] mt-3 max-w-2xl">
+            Explore artists, their origins, and the sounds that shape each discography.
+          </p>
+
+          <div className="mt-6 grid grid-cols-2 sm:grid-cols-3 gap-3 max-w-md">
+            <div className="rounded-lg border border-[#E7E4DE] bg-white/70 px-4 py-3">
+              <p className="text-2xl font-bold font-serif text-[#1A1917] leading-none">
+                {artists.length}
+              </p>
+              <p className="text-[10px] text-[#8A8680] uppercase tracking-widest mt-1">
+                Artists
+              </p>
+            </div>
+            <div className="rounded-lg border border-[#E7E4DE] bg-white/70 px-4 py-3">
+              <p className="text-2xl font-bold font-serif text-[#1A1917] leading-none">
+                {latestYear ?? "-"}
+              </p>
+              <p className="text-[10px] text-[#8A8680] uppercase tracking-widest mt-1">
+                Latest Formed
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
       <ArtistsClient artists={artists} />
     </div>
   );
