@@ -40,8 +40,26 @@ export async function PUT(
 ) {
   const supabase = await createClient()
   const { id } = await params
-  const { error: authError } = await requireAuth(supabase)
+  const { user, error: authError } = await requireAuth(supabase)
   if (authError) return authError
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user!.id)
+    .single()
+  const isAdmin = profile?.role === 'admin'
+
+  const { data: ownerRow, error: ownerError } = await supabase
+    .from('lyric_analyses')
+    .select('author_id')
+    .eq('id', id)
+    .single()
+
+  if (ownerError || !ownerRow) return notFound('Lyric analysis')
+  if (!isAdmin && ownerRow.author_id !== user!.id) {
+    return errorResponse('Forbidden — not your analysis', 403)
+  }
 
   const body = await request.json()
   const { id: _id, song_id, created_at, author_id, ...rest } = body

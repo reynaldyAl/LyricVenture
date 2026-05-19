@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 
 type AnalysisItem = Pick<
   Tables<"lyric_analyses">,
-  "id" | "theme" | "intro" | "published_at"
+  "id" | "theme" | "intro" | "published_at" | "created_at" | "view_count"
 > & {
   songs:
     | (Pick<
@@ -29,43 +29,83 @@ type AnalysisItem = Pick<
     | null;
 };
 
-async function getAnalyses(
+type AnalysisGroup = {
+  song: AnalysisItem["songs"];
+  topAnalysis: AnalysisItem;
+  otherCount: number;
+};
+
+async function getAnalysisGroups(
   page: number,
   pageSize: number,
-): Promise<{ items: AnalysisItem[]; total: number }> {
+): Promise<{ items: AnalysisGroup[]; total: number; totalAnalyses: number }> {
   const supabase = await createClient();
-  const from = (page - 1) * pageSize;
-  const to = from + pageSize - 1;
-  const { data, error, count } = await supabase
+  const { data, error } = await supabase
     .from("lyric_analyses")
-    .select(
-      `
-      id, theme, intro, published_at,
+    .select(`
+      id, theme, intro, published_at, created_at, view_count,
       songs (
         id, title, slug, cover_image, language,
         artists ( id, name, slug )
       )
-    `,
-      { count: "exact" },
-    )
-    .eq("status", "published") // ✅ FIX 1 — ganti is_published → status
-    .order("published_at", { ascending: false })
-    .range(from, to);
+    `)
+    .eq("status", "published")
+    .order("published_at", { ascending: false });
 
   if (error) {
-    console.error("getAnalyses:", error.message);
-    return { items: [], total: 0 };
+    console.error("getAnalysisGroups:", error.message);
+    return { items: [], total: 0, totalAnalyses: 0 };
   }
-  return { items: (data ?? []) as AnalysisItem[], total: count ?? 0 };
+
+  const analyses = (data ?? []) as AnalysisItem[];
+  const grouped = analyses.reduce((acc, analysis) => {
+    const key = analysis.songs?.id ?? analysis.id;
+    if (!acc[key]) {
+      acc[key] = { song: analysis.songs, analyses: [] as AnalysisItem[] };
+    }
+    acc[key].analyses.push(analysis);
+    return acc;
+  }, {} as Record<string, { song: AnalysisItem["songs"]; analyses: AnalysisItem[] }>);
+
+  const groups = Object.values(grouped).map((group) => {
+    const sortedAnalyses = [...group.analyses].sort((a, b) => {
+      const viewDiff = (b.view_count ?? 0) - (a.view_count ?? 0);
+      if (viewDiff !== 0) return viewDiff;
+      const aTime = new Date(a.published_at ?? a.created_at ?? 0).getTime();
+      const bTime = new Date(b.published_at ?? b.created_at ?? 0).getTime();
+      return bTime - aTime;
+    });
+    return {
+      song: group.song,
+      topAnalysis: sortedAnalyses[0],
+      otherCount: Math.max(sortedAnalyses.length - 1, 0),
+    };
+  });
+
+  groups.sort((a, b) => {
+    const viewDiff = (b.topAnalysis.view_count ?? 0) - (a.topAnalysis.view_count ?? 0);
+    if (viewDiff !== 0) return viewDiff;
+    const aTime = new Date(a.topAnalysis.published_at ?? a.topAnalysis.created_at ?? 0).getTime();
+    const bTime = new Date(b.topAnalysis.published_at ?? b.topAnalysis.created_at ?? 0).getTime();
+    return bTime - aTime;
+  });
+
+  const total = groups.length;
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize;
+  const items = groups.slice(from, to);
+
+  return { items, total, totalAnalyses: analyses.length };
 }
 
 async function getLatestPublished(): Promise<string | null> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("lyric_analyses")
-    .select("published_at")
+    .select("published_at, created_at")
     .eq("status", "published")
     .order("published_at", { ascending: false })
+    .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
 
@@ -73,7 +113,7 @@ async function getLatestPublished(): Promise<string | null> {
     console.error("getLatestPublished:", error.message);
     return null;
   }
-  return data?.published_at ?? null;
+  return data?.published_at ?? data?.created_at ?? null;
 }
 
 function timeAgo(dateStr: string | null): string {
@@ -96,8 +136,8 @@ export default async function AnalysesPage({
   const params = await searchParams;
   const currentPage = Math.max(1, Number(params?.page ?? 1));
   const pageSize = 10;
-  const [{ items, total }, latestPublished] = await Promise.all([
-    getAnalyses(currentPage, pageSize),
+  const [{ items, total, totalAnalyses }, latestPublished] = await Promise.all([
+    getAnalysisGroups(currentPage, pageSize),
     getLatestPublished(),
   ]);
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
@@ -105,7 +145,7 @@ export default async function AnalysesPage({
   const analyses =
     safePage === currentPage || total === 0
       ? items
-      : (await getAnalyses(safePage, pageSize)).items;
+      : (await getAnalysisGroups(safePage, pageSize)).items;
   const fromIndex = total === 0 ? 0 : (safePage - 1) * pageSize + 1;
   const toIndex = Math.min(total, safePage * pageSize);
 
@@ -139,7 +179,15 @@ export default async function AnalysesPage({
                 {total}
               </p>
               <p className="text-[10px] text-[#8A8680] uppercase tracking-widest mt-1">
-                Published
+                Songs
+              </p>
+            </div>
+            <div className="rounded-lg border border-[#E7E4DE] bg-white/70 px-4 py-3">
+              <p className="text-2xl font-bold font-serif text-[#1A1917] leading-none">
+                {totalAnalyses}
+              </p>
+              <p className="text-[10px] text-[#8A8680] uppercase tracking-widest mt-1">
+                Analyses
               </p>
             </div>
             <div className="rounded-lg border border-[#E7E4DE] bg-white/70 px-4 py-3">
@@ -194,13 +242,14 @@ export default async function AnalysesPage({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#EEEAE3]">
-                  {analyses.map((analysis, i) => {
-                    const song = analysis.songs;
+                  {analyses.map((group, i) => {
+                    const song = group.song;
                     const artist = song?.artists;
                     const rowNumber = fromIndex + i;
+                    const publishedLabel = timeAgo(group.topAnalysis.published_at ?? group.topAnalysis.created_at ?? null);
                     return (
                       <tr
-                        key={analysis.id}
+                        key={group.topAnalysis.id}
                         className="group hover:bg-white transition-colors"
                       >
                         <td className="py-4 px-4 text-right text-xs font-mono tabular-nums text-[#C0B8AE]">
@@ -226,7 +275,7 @@ export default async function AnalysesPage({
                         <td className="py-4 px-4">
                           <div className="min-w-0">
                             <Link
-                              href={`/analyses/${analysis.id}`}
+                              href={`/analyses/${group.topAnalysis.id}`}
                               className="font-serif font-bold text-sm text-[#1A1917] group-hover:text-[#3B5BDB] transition-colors line-clamp-1"
                             >
                               {song?.title}
@@ -239,19 +288,27 @@ export default async function AnalysesPage({
                                 </span>
                               )}
                             </p>
+                            {group.otherCount > 0 && song?.slug && (
+                              <Link
+                                href={`/songs/${song.slug}`}
+                                className="text-[10px] uppercase tracking-widest text-[#3B5BDB] hover:underline mt-1 inline-block"
+                              >
+                                Other analyses: {group.otherCount}
+                              </Link>
+                            )}
                           </div>
                         </td>
                         <td className="py-4 px-4 hidden md:table-cell">
                           <p className="text-xs italic text-[#5A5651] line-clamp-1">
-                            {analysis.theme ? `"${analysis.theme}"` : "-"}
+                            {group.topAnalysis.theme ? `"${group.topAnalysis.theme}"` : "-"}
                           </p>
                         </td>
                         <td className="py-4 px-4 text-right text-xs text-[#C0B8AE]">
-                          {timeAgo(analysis.published_at)}
+                          {publishedLabel}
                         </td>
                         <td className="py-4 px-4 text-right">
                           <Link
-                            href={`/analyses/${analysis.id}`}
+                            href={`/analyses/${group.topAnalysis.id}`}
                             className="text-[10px] uppercase tracking-widest text-[#3B5BDB] hover:underline"
                           >
                             Read

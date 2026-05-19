@@ -21,11 +21,12 @@ import type { Tables } from "@/lib/types";
 
 type AnalysisRow = Pick<
   Tables<"lyric_analyses">,
-  "id" | "theme" | "created_at" | "status"
+  "id" | "theme" | "created_at" | "status" | "author_id"
 > & {
   songs: (Pick<Tables<"songs">, "id" | "title" | "slug" | "cover_image"> & {
     artists: Pick<Tables<"artists">, "id" | "name" | "slug"> | null;
   }) | null;
+  profiles: Pick<Tables<"profiles">, "id" | "username" | "full_name" | "avatar_url"> | null;
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -38,9 +39,11 @@ const STATUS_COLORS: Record<string, string> = {
 export default function AnalysisTableClient({
   analyses,
   role,
+  userId,
 }: {
   analyses: AnalysisRow[];
   role: "admin" | "author";
+  userId: string;
 }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -50,12 +53,33 @@ export default function AnalysisTableClient({
   const [isPending, startTransition]    = useTransition();
 
   const filtered = analyses.filter((a) => {
+    const authorName = (
+      a.profiles?.full_name ??
+      a.profiles?.username ??
+      ""
+    ).toLowerCase();
     const matchSearch =
       (a.songs?.title ?? "").toLowerCase().includes(search.toLowerCase()) ||
       (a.songs?.artists?.name ?? "").toLowerCase().includes(search.toLowerCase()) ||
-      (a.theme ?? "").toLowerCase().includes(search.toLowerCase());
+      (a.theme ?? "").toLowerCase().includes(search.toLowerCase()) ||
+      authorName.includes(search.toLowerCase());
     const matchStatus = filterStatus === "all" || a.status === filterStatus;
     return matchSearch && matchStatus;
+  });
+
+  const grouped = filtered.reduce((acc, analysis) => {
+    const key = analysis.songs?.id ?? analysis.id;
+    if (!acc[key]) {
+      acc[key] = { song: analysis.songs, analyses: [] as AnalysisRow[] };
+    }
+    acc[key].analyses.push(analysis);
+    return acc;
+  }, {} as Record<string, { song: AnalysisRow["songs"]; analyses: AnalysisRow[] }>);
+
+  const groups = Object.values(grouped).sort((a, b) => {
+    const aTime = Math.max(...a.analyses.map((x) => new Date(x.created_at).getTime()));
+    const bTime = Math.max(...b.analyses.map((x) => new Date(x.created_at).getTime()));
+    return bTime - aTime;
   });
 
   async function handleDelete() {
@@ -105,78 +129,80 @@ export default function AnalysisTableClient({
           {search || filterStatus !== "all" ? "No analyses match your filter." : "No analyses yet. Add the first one!"}
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-zinc-800 text-[10px] uppercase tracking-wider text-zinc-500">
-                <th className="px-5 py-3 text-left font-medium">Song</th>
-                <th className="px-4 py-3 text-left font-medium hidden md:table-cell">Artist</th>
-                <th className="px-4 py-3 text-left font-medium hidden lg:table-cell">Theme</th>
-                <th className="px-4 py-3 text-left font-medium hidden sm:table-cell">Status</th>
-                <th className="px-4 py-3 text-right font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-800/60">
-              {filtered.map((analysis) => (
-                <tr key={analysis.id} className="hover:bg-zinc-800/30 transition-colors group">
-                  <td className="px-5 py-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-zinc-800 shrink-0 overflow-hidden rounded">
-                        {analysis.songs?.cover_image
-                          ? <img src={analysis.songs.cover_image} alt="" className="w-full h-full object-cover" />
-                          : <div className="w-full h-full flex items-center justify-center text-zinc-600 text-xs">✦</div>}
+        <div className="space-y-4">
+          {groups.map((group) => (
+            <div key={group.song?.id ?? group.analyses[0].id} className="border border-zinc-800/60 rounded-lg overflow-hidden bg-zinc-900/40">
+              <div className="px-5 py-4 flex items-center gap-4 border-b border-zinc-800/60">
+                <div className="w-10 h-10 bg-zinc-800 shrink-0 overflow-hidden rounded">
+                  {group.song?.cover_image
+                    ? <img src={group.song.cover_image} alt="" className="w-full h-full object-cover" />
+                    : <div className="w-full h-full flex items-center justify-center text-zinc-600 text-xs">✦</div>}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-zinc-200 truncate">
+                    {group.song?.title ?? "Unknown song"}
+                  </p>
+                  <p className="text-xs text-zinc-500">
+                    {group.song?.artists?.name ?? "—"}
+                  </p>
+                </div>
+                <span className="text-[10px] uppercase tracking-widest text-zinc-500">
+                  {group.analyses.length} analysis{group.analyses.length !== 1 ? "es" : ""}
+                </span>
+              </div>
+
+              <div className="divide-y divide-zinc-800/60">
+                {group.analyses.map((analysis) => {
+                  const authorName = analysis.profiles?.full_name ?? analysis.profiles?.username ?? "Unknown";
+                  const isYou = analysis.author_id === userId;
+                  return (
+                    <div key={analysis.id} className="px-5 py-3 flex items-center justify-between gap-4">
+                      <div className="min-w-0">
+                        <p className="text-[11px] uppercase tracking-widest text-zinc-500">
+                          {authorName}{isYou ? " · You" : ""}
+                        </p>
+                        <p className="text-sm text-zinc-200 truncate">
+                          {analysis.theme ?? "No theme"}
+                        </p>
                       </div>
-                      <p className="font-medium text-zinc-200 group-hover:text-indigo-300 transition-colors truncate max-w-[160px]">
-                        {analysis.songs?.title ?? "—"}
-                      </p>
+                      <div className="flex items-center gap-2 flex-wrap justify-end">
+                        <Badge className={`text-[10px] h-5 px-1.5 border capitalize ${
+                          STATUS_COLORS[analysis.status ?? "draft"] ?? STATUS_COLORS.draft
+                        }`}>
+                          {analysis.status ?? "draft"}
+                        </Badge>
+                        {role === "admin" && (
+                          <ModerationButtons
+                            table="lyric_analyses"
+                            id={analysis.id}
+                            status={analysis.status}
+                            revalidate="/dashboard/analyses"
+                          />
+                        )}
+                        {role === "author" && (
+                          <SubmitForReviewButton
+                            table="lyric_analyses"
+                            id={analysis.id}
+                            status={analysis.status}
+                            revalidate="/dashboard/analyses"
+                          />
+                        )}
+                        <Button variant="ghost" size="sm" asChild
+                          className="h-7 text-xs text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 px-2">
+                          <Link href={`/dashboard/analyses/${analysis.id}`}>Edit</Link>
+                        </Button>
+                        <Button variant="ghost" size="sm"
+                          onClick={() => setDeleteTarget(analysis)}
+                          className="h-7 text-xs text-zinc-600 hover:text-red-400 hover:bg-red-950/30 px-2">
+                          Delete
+                        </Button>
+                      </div>
                     </div>
-                  </td>
-                  <td className="px-4 py-3 hidden md:table-cell">
-                    <span className="text-zinc-400 text-xs">{analysis.songs?.artists?.name ?? "—"}</span>
-                  </td>
-                  <td className="px-4 py-3 hidden lg:table-cell">
-                    <span className="text-zinc-500 text-xs italic">{analysis.theme ?? "—"}</span>
-                  </td>
-                  <td className="px-4 py-3 hidden sm:table-cell">
-                    <Badge className={`text-[10px] h-5 px-1.5 border capitalize ${
-                      STATUS_COLORS[analysis.status ?? "draft"] ?? STATUS_COLORS.draft
-                    }`}>
-                      {analysis.status ?? "draft"}
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex items-center justify-end gap-1 flex-wrap">
-                      {role === "admin" && (
-                        <ModerationButtons
-                          table="lyric_analyses"
-                          id={analysis.id}
-                          status={analysis.status}
-                          revalidate="/dashboard/analyses"
-                        />
-                      )}
-                      {role === "author" && (
-                        <SubmitForReviewButton
-                          table="lyric_analyses"
-                          id={analysis.id}
-                          status={analysis.status}
-                          revalidate="/dashboard/analyses"
-                        />
-                      )}
-                      <Button variant="ghost" size="sm" asChild
-                        className="h-7 text-xs text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 px-2">
-                        <Link href={`/dashboard/analyses/${analysis.id}`}>Edit</Link>
-                      </Button>
-                      <Button variant="ghost" size="sm"
-                        onClick={() => setDeleteTarget(analysis)}
-                        className="h-7 text-xs text-zinc-600 hover:text-red-400 hover:bg-red-950/30 px-2">
-                        Delete
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </div>
       )}
 

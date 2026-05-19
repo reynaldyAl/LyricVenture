@@ -7,30 +7,39 @@ import type { Tables } from "@/lib/types";
 
 type SongOption = Pick<Tables<"songs">, "id" | "title" | "slug"> & {
   artists: Pick<Tables<"artists">, "name"> | null;
+  existing_analysis_id?: string | null;
 };
 
-async function getSongsWithoutAnalysis(): Promise<SongOption[]> {
+async function getSongsForUser(userId: string): Promise<SongOption[]> {
   const supabase = await createClient();
-  // Ambil semua songs (termasuk yang sudah ada analysis) → filter di sisi server
-  const { data: existingAnalyses } = await supabase
-    .from("lyric_analyses").select("song_id");
-  const usedSongIds = (existingAnalyses ?? []).map((a: { song_id: string }) => a.song_id);
 
-  let query = supabase
-    .from("songs")
-    .select("id, title, slug, artists ( name )")
-    .order("title");
+  const [{ data: existingAnalyses }, { data: songs }] = await Promise.all([
+    supabase
+      .from("lyric_analyses")
+      .select("id, song_id")
+      .eq("author_id", userId),
+    supabase
+      .from("songs")
+      .select("id, title, slug, artists ( name )")
+      .order("title"),
+  ]);
 
-  if (usedSongIds.length > 0) {
-    query = query.not("id", "in", `(${usedSongIds.join(",")})`);
-  }
+  const existingMap = new Map(
+    (existingAnalyses ?? []).map((a: { id: string; song_id: string }) => [a.song_id, a.id])
+  );
 
-  const { data } = await query;
-  return (data ?? []) as SongOption[];
+  return (songs ?? []).map((song) => ({
+    ...song,
+    existing_analysis_id: existingMap.get(song.id) ?? null,
+  })) as SongOption[];
 }
 
 export default async function NewAnalysisPage() {
-  const songs = await getSongsWithoutAnalysis();
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const songs = await getSongsForUser(user.id);
 
   return (
     <div className="max-w-2xl mx-auto space-y-5">
@@ -48,8 +57,8 @@ export default async function NewAnalysisPage() {
 
       {songs.length === 0 ? (
         <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-8 text-center">
-          <p className="text-zinc-400 text-sm">All published songs already have an analysis.</p>
-          <p className="text-zinc-600 text-xs mt-1">Add more songs first, then create an analysis.</p>
+          <p className="text-zinc-400 text-sm">No songs available for analysis.</p>
+          <p className="text-zinc-600 text-xs mt-1">Add songs first, then create an analysis.</p>
           <Button asChild size="sm" variant="outline"
             className="mt-4 border-zinc-700 text-zinc-300 hover:bg-zinc-800">
             <Link href="/dashboard/songs/new">+ Add Song</Link>

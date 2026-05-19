@@ -2,7 +2,6 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
-import LyricAnalysis from "@/components/public/LyricAnalysis";
 import type { Tables } from "@/lib/types";
 import type { Metadata } from "next";
 
@@ -49,9 +48,8 @@ export async function generateMetadata({
 }
 
 // ── Types ──────────────────────────────────────────────────
-type Highlight  = Tables<"lyric_highlights">;
-type Section    = Tables<"lyric_sections"> & { lyric_highlights: Highlight[] };
-type Analysis   = Tables<"lyric_analyses"> & { lyric_sections: Section[] };
+type AuthorProfile = Pick<Tables<"profiles">, "id" | "username" | "full_name" | "avatar_url">;
+type Analysis   = Tables<"lyric_analyses"> & { profiles: AuthorProfile | null };
 type SongDetail = Tables<"songs"> & {
   artists:        Tables<"artists"> | null;
   albums:         Tables<"albums">  | null;
@@ -70,11 +68,8 @@ async function getSong(slug: string): Promise<SongDetail | null> {
       albums  ( * ),
       song_tags ( tags ( id, name, slug, color ) ),
       lyric_analyses (
-        *,
-        lyric_sections (
-          *,
-          lyric_highlights ( * )
-        )
+        id, author_id, intro, theme, status, published_at, created_at,
+        profiles ( id, username, full_name, avatar_url )
       )
     `)
     .eq("slug", slug)
@@ -91,9 +86,13 @@ async function getSong(slug: string): Promise<SongDetail | null> {
     ? [raw.lyric_analyses]
     : [];
 
-  const publishedAnalyses = rawAnalyses.filter(
-    (a: any) => a.status === "published"
-  );
+  const publishedAnalyses = rawAnalyses
+    .filter((a: any) => a.status === "published")
+    .sort((a: any, b: any) => {
+      const aTime = new Date(a.published_at ?? a.created_at ?? 0).getTime();
+      const bTime = new Date(b.published_at ?? b.created_at ?? 0).getTime();
+      return bTime - aTime;
+    });
 
   return {
     ...raw,
@@ -133,6 +132,9 @@ export default async function SongDetailPage({
   const song     = await getSong(slug);
   if (!song) notFound();
 
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
   // increment view, tidak block render
   incrementViewCount(song.id);
 
@@ -141,7 +143,7 @@ export default async function SongDetailPage({
   const tags          = song.song_tags.map((st) => st.tags).filter(Boolean) as any[];
   // ✅ FIX 4 — selalu array sekarang, ambil index 0
   const rawAnalyses   = song.lyric_analyses as Analysis[];
-  const analysis      = rawAnalyses?.[0] ?? null;
+  const analyses      = rawAnalyses ?? [];
   const relatedSongs  = artist?.id
     ? await getRelatedSongs(artist.id, slug)
     : [];
@@ -269,8 +271,54 @@ export default async function SongDetailPage({
       ══════════════════════════════════════════════ */}
       <div className="container mx-auto px-6 py-12 max-w-3xl">
 
-        {analysis ? (
-          <LyricAnalysis analysis={analysis} />
+        {analyses.length > 0 ? (
+          <div className="space-y-5">
+            <div className="flex items-baseline justify-between">
+              <p className="text-[10px] tracking-[0.4em] uppercase text-[#8A8680]">
+                Community Analyses
+              </p>
+              <span className="text-xs text-[#8A8680]">
+                {analyses.length} analysis{analyses.length !== 1 ? "es" : ""}
+              </span>
+            </div>
+
+            <div className="space-y-3">
+              {analyses.map((a) => {
+                const authorName = a.profiles?.full_name ?? a.profiles?.username ?? "Community";
+                const intro = a.intro ? a.intro.slice(0, 180) : "No introduction yet.";
+                const isYou = user?.id && a.author_id === user.id;
+                return (
+                  <Link
+                    key={a.id}
+                    href={`/analyses/${a.id}`}
+                    className="block border border-[#E2E0DB] bg-white/70 hover:bg-white transition-colors p-4"
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-[10px] uppercase tracking-widest text-[#8A8680]">
+                            {authorName}
+                          </p>
+                          {isYou && (
+                            <span className="text-[9px] uppercase tracking-widest px-1.5 py-0.5 border border-[#D5D2CB] text-[#8A8680]">
+                              You
+                            </span>
+                          )}
+                        </div>
+                        <p className="font-serif font-semibold text-base text-[#1A1917] mt-1">
+                          {a.theme ? `“${a.theme}”` : "Lyric Analysis"}
+                        </p>
+                        <p className="text-sm text-[#5A5651] mt-2 line-clamp-2">
+                          {intro}
+                        </p>
+                      </div>
+                      <span className="text-xs text-[#3B5BDB] shrink-0">Read →</span>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
         ) : (
           <div className="py-16 text-center border border-dashed border-[#D5D2CB]">
             <p className="text-3xl text-[#C5C2BC] mb-3">✦</p>

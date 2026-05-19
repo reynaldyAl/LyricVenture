@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ type AnalysisFull = Tables<"lyric_analyses"> & {
 
 type SongOption = Pick<Tables<"songs">, "id" | "title" | "slug"> & {
   artists: Pick<Tables<"artists">, "name"> | null;
+  existing_analysis_id?: string | null;
 };
 
 interface AnalysisFormProps {
@@ -47,6 +49,9 @@ export default function AnalysisForm({ mode, analysis, songs, role = "author" }:
     status:     analysis?.status     ?? "draft",
   });
 
+  const selectedSong = (songs ?? []).find((s) => s.id === form.song_id);
+  const existingAnalysisId = selectedSong?.existing_analysis_id ?? null;
+
   function set(key: string, value: string | boolean) {
     setForm((f) => ({ ...f, [key]: value }));
   }
@@ -55,6 +60,14 @@ export default function AnalysisForm({ mode, analysis, songs, role = "author" }:
     e.preventDefault();
     if (mode === "create" && !form.song_id) {
       toast({ title: "Error", description: "Please select a song", variant: "destructive" });
+      return;
+    }
+    if (mode === "create" && existingAnalysisId) {
+      toast({
+        title: "Already analyzed",
+        description: "You already created an analysis for this song. Edit it instead.",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -131,6 +144,17 @@ export default function AnalysisForm({ mode, analysis, songs, role = "author" }:
             <div className="px-3 py-2 bg-zinc-800/60 rounded border border-zinc-700/50">
               <p className="text-sm font-medium text-zinc-200">{analysis?.songs?.title}</p>
               <p className="text-xs text-zinc-500">{analysis?.songs?.artists?.name}</p>
+            </div>
+          )}
+          {mode === "create" && existingAnalysisId && (
+            <div className="text-xs text-amber-400 border border-amber-900/40 bg-amber-900/20 px-3 py-2 rounded">
+              You already analyzed this song. You can edit it here: {" "}
+              <Link
+                href={`/dashboard/analyses/${existingAnalysisId}/edit`}
+                className="text-amber-300 hover:underline"
+              >
+                Edit analysis →
+              </Link>
             </div>
           )}
         </CardContent>
@@ -248,7 +272,7 @@ export default function AnalysisForm({ mode, analysis, songs, role = "author" }:
           className="border-zinc-700 text-zinc-300 hover:bg-zinc-800 h-9">
           Cancel
         </Button>
-        <Button type="submit" size="sm" disabled={isPending}
+        <Button type="submit" size="sm" disabled={isPending || (mode === "create" && !!existingAnalysisId)}
           className="bg-indigo-600 hover:bg-indigo-700 text-white h-9 px-6 min-w-[120px]">
           {isPending
             ? (mode === "create" ? "Creating..." : "Saving...")

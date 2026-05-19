@@ -50,8 +50,20 @@ export async function POST(request: Request) {
   if (!song) return errorResponse('Song not found', 404)
 
   const { data: existing } = await supabase
-    .from('lyric_analyses').select('id').eq('song_id', song_id).single()
-  if (existing) return errorResponse('Lyric analysis already exists for this song', 409)
+    .from('lyric_analyses')
+    .select('id')
+    .eq('song_id', song_id)
+    .eq('author_id', user!.id)
+    .maybeSingle()
+  if (existing) {
+    return new Response(
+      JSON.stringify({
+        error: 'You already analyzed this song',
+        existing_id: existing.id,
+      }),
+      { status: 409, headers: { 'Content-Type': 'application/json' } }
+    )
+  }
 
   // ✅ Admin → published langsung, Author → paksa draft
   const finalStatus = isAdmin ? (status ?? 'published') : 'draft'

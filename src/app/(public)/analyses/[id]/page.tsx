@@ -52,14 +52,23 @@ async function getAnalysis(id: string): Promise<AnalysisFull | null> {
   };
 }
 
-    function formatDate(dateStr: string | null): string {
-      if (!dateStr) return "";
-      return new Date(dateStr).toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      });
-    }
+async function incrementAnalysisViewCount(analysisId: string) {
+  const supabase = await createClient();
+  try {
+    await (supabase.rpc as any)("increment_analysis_view", { analysis_id: analysisId });
+  } catch {
+    // Ignore view count failures to avoid blocking the page render.
+  }
+}
+
+function formatDate(dateStr: string | null): string {
+  if (!dateStr) return "";
+  return new Date(dateStr).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+}
 
 // ── SEO ───────────────────────────────────────────────────
 export async function generateMetadata({
@@ -101,13 +110,15 @@ export default async function AnalysisDetailPage({
   const analysis = await getAnalysis(id);
   if (!analysis) notFound();
 
+  void incrementAnalysisViewCount(analysis.id);
+
   const song   = analysis.songs as any;
   const artist = song?.artists  as any;
   const album  = song?.albums   as any;
   const year   = song?.release_date
     ? new Date(song.release_date).getFullYear()
     : null;
-  const publishedLabel = formatDate(analysis.published_at ?? null);
+  const publishedLabel = formatDate(analysis.published_at ?? analysis.created_at ?? null);
 
   return (
     <div style={{ background: "#F4F3F0", color: "#1A1917" }}>
@@ -151,8 +162,6 @@ export default async function AnalysisDetailPage({
               <h1 className="font-serif font-bold text-3xl md:text-[2.6rem] text-[#1A1917] leading-tight">
                 {song?.title ?? "Untitled"}
               </h1>
-
-              {/* Artist + album */}
               <div className="flex items-center gap-2 mt-3 flex-wrap">
                 {artist && (
                   <Link

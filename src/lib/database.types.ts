@@ -180,6 +180,7 @@ export type Database = {
           status: string
           theme: string | null
           updated_at: string
+          view_count: number
         }
         Insert: {
           author_id?: string | null
@@ -194,6 +195,7 @@ export type Database = {
           status?: string
           theme?: string | null
           updated_at?: string
+          view_count?: number
         }
         Update: {
           author_id?: string | null
@@ -208,6 +210,7 @@ export type Database = {
           status?: string
           theme?: string | null
           updated_at?: string
+          view_count?: number
         }
         Relationships: [
           {
@@ -220,7 +223,7 @@ export type Database = {
           {
             foreignKeyName: "lyric_analyses_song_id_fkey"
             columns: ["song_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "songs"
             referencedColumns: ["id"]
           },

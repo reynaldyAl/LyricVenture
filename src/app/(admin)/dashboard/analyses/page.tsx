@@ -10,11 +10,12 @@ type Role = "admin" | "author";
 
 type AnalysisRow = Pick<
   Tables<"lyric_analyses">,
-  "id" | "theme" | "created_at" | "status"
+  "id" | "theme" | "created_at" | "status" | "author_id"
 > & {
   songs: (Pick<Tables<"songs">, "id" | "title" | "slug" | "cover_image"> & {
     artists: Pick<Tables<"artists">, "id" | "name" | "slug"> | null;
   }) | null;
+  profiles: Pick<Tables<"profiles">, "id" | "username" | "full_name" | "avatar_url"> | null;
 };
 
 async function getAnalyses(role: Role, userId: string): Promise<AnalysisRow[]> {
@@ -23,11 +24,12 @@ async function getAnalyses(role: Role, userId: string): Promise<AnalysisRow[]> {
   const query = supabase
     .from("lyric_analyses")
     .select(`
-      id, theme, created_at, status,
+      id, theme, created_at, status, author_id,
       songs (
         id, title, slug, cover_image,
         artists ( id, name, slug )
-      )
+      ),
+      profiles ( id, username, full_name, avatar_url )
     `)
     .order("created_at", { ascending: false })
     .limit(100); // ✅ tambah limit
@@ -108,7 +110,7 @@ export default async function AnalysesPage() {
         </CardHeader>
         <Separator className="bg-zinc-800" />
         <CardContent className="p-0">
-          <AnalysisTableClient analyses={analysesData} role={role} />
+          <AnalysisTableClient analyses={analysesData} role={role} userId={user.id} />
         </CardContent>
       </Card>
     </div>
