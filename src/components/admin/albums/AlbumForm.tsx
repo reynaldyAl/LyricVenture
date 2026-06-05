@@ -10,45 +10,60 @@ import { Switch } from "@/components/ui/switch"; // ✅ tambah
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import {
-  Select, SelectContent, SelectItem,
-  SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import ImageUpload from "@/components/admin/ImageUpload";
 import type { Tables } from "@/lib/types";
 
-type AlbumFull    = Tables<"albums">;
+type AlbumFull = Tables<"albums">;
 type ArtistOption = Pick<Tables<"artists">, "id" | "name" | "slug">;
 
 interface AlbumFormProps {
-  mode:    "create" | "edit";
-  album?:  AlbumFull;
+  mode: "create" | "edit";
+  album?: AlbumFull;
   artists: ArtistOption[];
-  role?:   "admin" | "author"; // ✅ tambah
+  role?: "admin" | "author"; // ✅ tambah
 }
 
 function slugify(text: string) {
-  return text.toLowerCase().replace(/[^\w\s-]/g, "").replace(/[\s_]+/g, "-").replace(/^-+|-+$/g, "");
+  return text
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, "")
+    .replace(/[\s_]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 }
 
 const ALBUM_TYPES = ["album", "ep", "single", "compilation", "live"] as const;
 
-export default function AlbumForm({ mode, album, artists, role = "author" }: AlbumFormProps) {
-  const router    = useRouter();
+export default function AlbumForm({
+  mode,
+  album,
+  artists,
+  role = "author",
+}: AlbumFormProps) {
+  const router = useRouter();
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
+  const [isFetching, startFetching] = useTransition();
 
   const [form, setForm] = useState({
-    artist_id:    album?.artist_id    ?? "",
-    title:        album?.title        ?? "",
-    slug:         album?.slug         ?? "",
-    description:  album?.description  ?? "",
+    artist_id: album?.artist_id ?? "",
+    title: album?.title ?? "",
+    slug: album?.slug ?? "",
+    description: album?.description ?? "",
     release_date: album?.release_date ?? "",
-    album_type:   album?.album_type   ?? "album",
+    album_type: album?.album_type ?? "album",
     total_tracks: album?.total_tracks?.toString() ?? "",
-    cover_image:  album?.cover_image  ?? "",
-    status:       album?.status       ?? "draft", // ✅ tambah
+    cover_image: album?.cover_image ?? "",
+    status: album?.status ?? "draft", // ✅ tambah
   });
+
+  const [spotifyInput, setSpotifyInput] = useState("");
 
   function set(key: string, value: string | boolean) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -62,30 +77,100 @@ export default function AlbumForm({ mode, album, artists, role = "author" }: Alb
     }));
   }
 
+  function normalizeReleaseDate(
+    value: string,
+    precision: "year" | "month" | "day",
+  ) {
+    if (!value) return "";
+    if (precision === "day") return value;
+    if (precision === "month") return `${value}-01`;
+    return `${value}-01-01`;
+  }
+
+  function handleSpotifyFetch() {
+    if (!spotifyInput.trim()) {
+      toast({
+        title: "Error",
+        description: "Spotify URL or ID is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    startFetching(async () => {
+      const res = await fetch(
+        `/api/spotify/album?input=${encodeURIComponent(spotifyInput.trim())}`,
+      );
+      const json = await res.json();
+
+      if (!res.ok) {
+        toast({
+          title: "Error",
+          description: json.error ?? "Failed to fetch album",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      handleTitleChange(json.name ?? "");
+
+      const normalizedType = String(json.album_type ?? "").toLowerCase();
+      if (
+        ALBUM_TYPES.includes(normalizedType as (typeof ALBUM_TYPES)[number])
+      ) {
+        set("album_type", normalizedType);
+      }
+
+      const releaseDate = normalizeReleaseDate(
+        json.release_date ?? "",
+        (json.release_date_precision ?? "day") as "year" | "month" | "day",
+      );
+      if (releaseDate) set("release_date", releaseDate);
+
+      if (Number.isFinite(json.total_tracks)) {
+        set("total_tracks", String(json.total_tracks));
+      }
+
+      const images = Array.isArray(json.images) ? json.images : [];
+      const coverImage = images[0]?.url ?? "";
+      if (coverImage) set("cover_image", coverImage);
+
+      toast({
+        title: "Spotify data applied",
+        description: json.name ?? "Album updated",
+      });
+    });
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.artist_id) {
-      toast({ title: "Error", description: "Please select an artist", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Please select an artist",
+        variant: "destructive",
+      });
       return;
     }
 
     startTransition(async () => {
       const payload = {
-        artist_id:    form.artist_id,
-        title:        form.title.trim(),
-        slug:         form.slug.trim(),
-        description:  form.description || null,
+        artist_id: form.artist_id,
+        title: form.title.trim(),
+        slug: form.slug.trim(),
+        description: form.description || null,
         release_date: form.release_date || null,
-        album_type:   form.album_type,
+        album_type: form.album_type,
         total_tracks: form.total_tracks ? Number(form.total_tracks) : null,
-        cover_image:  form.cover_image || null,
-        status:       form.status, // ✅ tambah
+        cover_image: form.cover_image || null,
+        status: form.status, // ✅ tambah
       };
 
-      const url    = mode === "create" ? "/api/albums" : `/api/albums/${album!.slug}`;
+      const url =
+        mode === "create" ? "/api/albums" : `/api/albums/${album!.slug}`;
       const method = mode === "create" ? "POST" : "PUT";
 
-      const res  = await fetch(url, {
+      const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -94,37 +179,78 @@ export default function AlbumForm({ mode, album, artists, role = "author" }: Alb
 
       if (res.ok) {
         toast({
-          title:       mode === "create" ? "Album created!" : "Album updated!",
+          title: mode === "create" ? "Album created!" : "Album updated!",
           description: payload.title,
         });
         router.push("/dashboard/albums");
         router.refresh();
       } else {
-        toast({ title: "Error", description: json.error ?? "Something went wrong", variant: "destructive" });
+        toast({
+          title: "Error",
+          description: json.error ?? "Something went wrong",
+          variant: "destructive",
+        });
       }
     });
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
+      {/* ── Spotify Autofill ── */}
+      <Card className="bg-zinc-900 border-zinc-800">
+        <CardContent className="p-5 space-y-3">
+          <p className="text-[10px] uppercase tracking-widest text-zinc-500 font-semibold">
+            Spotify Autofill
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Input
+              value={spotifyInput}
+              onChange={(e) => setSpotifyInput(e.target.value)}
+              placeholder="Spotify album URL or ID"
+              className="bg-zinc-800 border-zinc-700 text-zinc-100 placeholder:text-zinc-600 h-9"
+            />
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleSpotifyFetch}
+              disabled={isFetching}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white h-9 px-4"
+            >
+              {isFetching ? "Fetching..." : "Fetch"}
+            </Button>
+          </div>
+          <p className="text-[11px] text-zinc-500">
+            Autofill title, release date, type, total tracks, and cover image.
+            You can edit everything after.
+          </p>
+        </CardContent>
+      </Card>
 
       {/* ── Basic Info ── */}
       <Card className="bg-zinc-900 border-zinc-800">
         <CardContent className="p-5 space-y-4">
-          <p className="text-[10px] uppercase tracking-widest text-zinc-500 font-semibold">Basic Info</p>
+          <p className="text-[10px] uppercase tracking-widest text-zinc-500 font-semibold">
+            Basic Info
+          </p>
 
           <div className="space-y-1.5">
             <Label className="text-xs text-zinc-400">
               Artist <span className="text-red-400">*</span>
             </Label>
-            <Select value={form.artist_id} onValueChange={(v) => set("artist_id", v)}>
+            <Select
+              value={form.artist_id}
+              onValueChange={(v) => set("artist_id", v)}
+            >
               <SelectTrigger className="bg-zinc-800 border-zinc-700 text-zinc-100 focus:border-indigo-500 h-9 text-sm">
                 <SelectValue placeholder="Select an artist..." />
               </SelectTrigger>
               <SelectContent className="bg-zinc-900 border-zinc-700 text-zinc-100">
                 {artists.map((a) => (
-                  <SelectItem key={a.id} value={a.id}
-                    className="hover:bg-zinc-800 focus:bg-zinc-800 text-zinc-200 text-sm">
+                  <SelectItem
+                    key={a.id}
+                    value={a.id}
+                    className="hover:bg-zinc-800 focus:bg-zinc-800 text-zinc-200 text-sm"
+                  >
                     {a.name}
                   </SelectItem>
                 ))}
@@ -134,7 +260,9 @@ export default function AlbumForm({ mode, album, artists, role = "author" }: Alb
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label className="text-xs text-zinc-400">Title <span className="text-red-400">*</span></Label>
+              <Label className="text-xs text-zinc-400">
+                Title <span className="text-red-400">*</span>
+              </Label>
               <Input
                 value={form.title}
                 onChange={(e) => handleTitleChange(e.target.value)}
@@ -144,7 +272,9 @@ export default function AlbumForm({ mode, album, artists, role = "author" }: Alb
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-zinc-400">Slug <span className="text-red-400">*</span></Label>
+              <Label className="text-xs text-zinc-400">
+                Slug <span className="text-red-400">*</span>
+              </Label>
               <Input
                 value={form.slug}
                 onChange={(e) => set("slug", e.target.value)}
@@ -169,14 +299,20 @@ export default function AlbumForm({ mode, album, artists, role = "author" }: Alb
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="space-y-1.5">
               <Label className="text-xs text-zinc-400">Type</Label>
-              <Select value={form.album_type} onValueChange={(v) => set("album_type", v)}>
+              <Select
+                value={form.album_type}
+                onValueChange={(v) => set("album_type", v)}
+              >
                 <SelectTrigger className="bg-zinc-800 border-zinc-700 text-zinc-100 focus:border-indigo-500 h-9 text-sm capitalize">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-zinc-900 border-zinc-700 text-zinc-100">
                   {ALBUM_TYPES.map((t) => (
-                    <SelectItem key={t} value={t}
-                      className="hover:bg-zinc-800 focus:bg-zinc-800 text-zinc-200 text-sm capitalize">
+                    <SelectItem
+                      key={t}
+                      value={t}
+                      className="hover:bg-zinc-800 focus:bg-zinc-800 text-zinc-200 text-sm capitalize"
+                    >
                       {t.charAt(0).toUpperCase() + t.slice(1)}
                     </SelectItem>
                   ))}
@@ -201,7 +337,8 @@ export default function AlbumForm({ mode, album, artists, role = "author" }: Alb
                 value={form.total_tracks}
                 onChange={(e) => set("total_tracks", e.target.value)}
                 placeholder="e.g. 17"
-                min={1} max={999}
+                min={1}
+                max={999}
                 className="bg-zinc-800 border-zinc-700 text-zinc-100 placeholder:text-zinc-600 focus:border-indigo-500 h-9 text-sm"
               />
             </div>
@@ -212,7 +349,9 @@ export default function AlbumForm({ mode, album, artists, role = "author" }: Alb
       {/* ── Cover Image ── */}
       <Card className="bg-zinc-900 border-zinc-800">
         <CardContent className="p-5 space-y-4">
-          <p className="text-[10px] uppercase tracking-widest text-zinc-500 font-semibold">Cover Image</p>
+          <p className="text-[10px] uppercase tracking-widest text-zinc-500 font-semibold">
+            Cover Image
+          </p>
           <ImageUpload
             value={form.cover_image}
             onChange={(url) => set("cover_image", url)}
@@ -238,7 +377,9 @@ export default function AlbumForm({ mode, album, artists, role = "author" }: Alb
               </div>
               <Switch
                 checked={form.status === "published"}
-                onCheckedChange={(v) => set("status", v ? "published" : "draft")}
+                onCheckedChange={(v) =>
+                  set("status", v ? "published" : "draft")
+                }
                 className="data-[state=checked]:bg-indigo-600"
               />
             </div>
@@ -249,15 +390,28 @@ export default function AlbumForm({ mode, album, artists, role = "author" }: Alb
       <Separator className="bg-zinc-800" />
 
       <div className="flex items-center gap-3 justify-end">
-        <Button type="button" variant="outline" size="sm" onClick={() => router.back()}
-          className="border-zinc-700 text-zinc-300 hover:bg-zinc-800 h-9">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => router.back()}
+          className="border-zinc-700 text-zinc-300 hover:bg-zinc-800 h-9"
+        >
           Cancel
         </Button>
-        <Button type="submit" size="sm" disabled={isPending}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white h-9 px-6 min-w-[110px]">
+        <Button
+          type="submit"
+          size="sm"
+          disabled={isPending}
+          className="bg-indigo-600 hover:bg-indigo-700 text-white h-9 px-6 min-w-[110px]"
+        >
           {isPending
-            ? (mode === "create" ? "Creating..." : "Saving...")
-            : (mode === "create" ? "Create Album" : "Save Changes")}
+            ? mode === "create"
+              ? "Creating..."
+              : "Saving..."
+            : mode === "create"
+              ? "Create Album"
+              : "Save Changes"}
         </Button>
       </div>
     </form>
