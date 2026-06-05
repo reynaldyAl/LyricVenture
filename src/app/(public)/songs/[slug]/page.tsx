@@ -18,10 +18,8 @@ export async function generateMetadata({
     return { title: "Song Not Found" };
   }
 
-  const artist  = song.artists as any;
-  const title   = artist?.name
-    ? `${song.title} — ${artist.name}`
-    : song.title;
+  const artist = song.artists as any;
+  const title = artist?.name ? `${song.title} — ${artist.name}` : song.title;
   const description =
     (song as any).lyric_analyses?.[0]?.intro?.slice(0, 160) ??
     `Lyric analysis and meaning of "${song.title}"${artist?.name ? ` by ${artist.name}` : ""}.`;
@@ -30,30 +28,35 @@ export async function generateMetadata({
     title,
     description,
     openGraph: {
-      title:       `${title} | LyricVenture`,
+      title: `${title} | LyricVenture`,
       description,
-      url:         `https://lyricventure.com/songs/${slug}`,
-      images:      song.cover_image
+      url: `https://lyricventure.com/songs/${slug}`,
+      images: song.cover_image
         ? [{ url: song.cover_image, width: 400, height: 400, alt: song.title }]
         : [],
       type: "music.song",
     },
     twitter: {
-      card:        "summary_large_image",
-      title:       `${title} | LyricVenture`,
+      card: "summary_large_image",
+      title: `${title} | LyricVenture`,
       description,
-      images:      song.cover_image ? [song.cover_image] : [],
+      images: song.cover_image ? [song.cover_image] : [],
     },
   };
 }
 
 // ── Types ──────────────────────────────────────────────────
-type AuthorProfile = Pick<Tables<"profiles">, "id" | "username" | "full_name" | "avatar_url">;
-type Analysis   = Tables<"lyric_analyses"> & { profiles: AuthorProfile | null };
+type AuthorProfile = Pick<
+  Tables<"profiles">,
+  "id" | "username" | "full_name" | "avatar_url"
+>;
+type Analysis = Tables<"lyric_analyses"> & { profiles: AuthorProfile | null };
 type SongDetail = Tables<"songs"> & {
-  artists:        Tables<"artists"> | null;
-  albums:         Tables<"albums">  | null;
-  song_tags:      { tags: Pick<Tables<"tags">, "id" | "name" | "slug" | "color"> | null }[];
+  artists: Tables<"artists"> | null;
+  albums: Tables<"albums"> | null;
+  song_tags: {
+    tags: Pick<Tables<"tags">, "id" | "name" | "slug" | "color"> | null;
+  }[];
   lyric_analyses: Analysis[] | Analysis | null;
 };
 
@@ -62,7 +65,8 @@ async function getSong(slug: string): Promise<SongDetail | null> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("songs")
-    .select(`
+    .select(
+      `
       *,
       artists ( * ),
       albums  ( * ),
@@ -71,9 +75,10 @@ async function getSong(slug: string): Promise<SongDetail | null> {
         id, author_id, intro, theme, status, published_at, created_at,
         profiles ( id, username, full_name, avatar_url )
       )
-    `)
+    `,
+    )
     .eq("slug", slug)
-    .eq("status", "published")           // ✅ FIX 1 — ganti is_published → status
+    .eq("status", "published") // ✅ FIX 1 — ganti is_published → status
     .single();
 
   if (error || !data) return null;
@@ -83,8 +88,8 @@ async function getSong(slug: string): Promise<SongDetail | null> {
   const rawAnalyses = Array.isArray(raw.lyric_analyses)
     ? raw.lyric_analyses
     : raw.lyric_analyses
-    ? [raw.lyric_analyses]
-    : [];
+      ? [raw.lyric_analyses]
+      : [];
 
   const publishedAnalyses = rawAnalyses
     .filter((a: any) => a.status === "published")
@@ -106,7 +111,7 @@ async function getRelatedSongs(artistId: string, currentSlug: string) {
     .from("songs")
     .select("id, title, slug, cover_image, artists ( name )")
     .eq("artist_id", artistId)
-    .eq("status", "published")           // ✅ FIX 3 — ganti is_published → status
+    .eq("status", "published") // ✅ FIX 3 — ganti is_published → status
     .neq("slug", currentSlug)
     .limit(4);
   return (data ?? []) as any[];
@@ -114,7 +119,9 @@ async function getRelatedSongs(artistId: string, currentSlug: string) {
 
 async function incrementViewCount(songId: string) {
   const supabase = await createClient();
-  (supabase.rpc as any)("increment_song_view", { song_id: songId }).then(() => {});
+  (supabase.rpc as any)("increment_song_view", { song_id: songId }).then(
+    () => {},
+  );
 }
 
 function fmt(sec: number | null) {
@@ -129,43 +136,55 @@ export default async function SongDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const song     = await getSong(slug);
+  const song = await getSong(slug);
   if (!song) notFound();
 
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   // increment view, tidak block render
   incrementViewCount(song.id);
 
-  const artist        = song.artists as any;
-  const album         = song.albums  as any;
-  const tags          = song.song_tags.map((st) => st.tags).filter(Boolean) as any[];
+  const artist = song.artists as any;
+  const album = song.albums as any;
+  const tags = song.song_tags.map((st) => st.tags).filter(Boolean) as any[];
   // ✅ FIX 4 — selalu array sekarang, ambil index 0
-  const rawAnalyses   = song.lyric_analyses as Analysis[];
-  const analyses      = rawAnalyses ?? [];
-  const relatedSongs  = artist?.id
-    ? await getRelatedSongs(artist.id, slug)
-    : [];
+  const rawAnalyses = song.lyric_analyses as Analysis[];
+  const analyses = rawAnalyses ?? [];
+  const relatedSongs = artist?.id ? await getRelatedSongs(artist.id, slug) : [];
 
-  const year = song.release_date ? new Date(song.release_date).getFullYear() : null;
+  const year = song.release_date
+    ? new Date(song.release_date).getFullYear()
+    : null;
 
   return (
     <div style={{ background: "#F4F3F0", color: "#1A1917" }}>
-
       {/* ══════════════════════════════════════════════
           SONG HEADER
       ══════════════════════════════════════════════ */}
-      <div className="border-b border-[#E2E0DB]" style={{ background: "#FFFFFF" }}>
+      <div
+        className="border-b border-[#E2E0DB]"
+        style={{ background: "#FFFFFF" }}
+      >
         <div className="container mx-auto px-6 py-12 max-w-3xl">
-
           {/* Breadcrumb */}
           <nav className="flex items-center gap-2 text-xs text-[#8A8680] mb-8">
-            <Link href="/" className="hover:text-[#1A1917] transition-colors">Home</Link>
+            <Link href="/" className="hover:text-[#1A1917] transition-colors">
+              Home
+            </Link>
             <span>·</span>
-            <Link href="/songs" className="hover:text-[#1A1917] transition-colors">Songs</Link>
+            <Link
+              href="/songs"
+              className="hover:text-[#1A1917] transition-colors"
+            >
+              Songs
+            </Link>
             <span>·</span>
-            <span className="text-[#1A1917] truncate max-w-[200px]">{song.title}</span>
+            <span className="text-[#1A1917] truncate max-w-[200px]">
+              {song.title}
+            </span>
           </nav>
 
           <div className="flex flex-col sm:flex-row gap-8 items-start">
@@ -175,12 +194,15 @@ export default async function SongDetailPage({
                 <Image
                   src={song.cover_image}
                   alt={song.title}
-                  width={176} height={176}
+                  width={176}
+                  height={176}
                   className="w-full h-full object-cover"
                   priority
                 />
               ) : (
-                <div className="w-full h-full flex items-center justify-center text-4xl text-[#A8A39D]">♫</div>
+                <div className="w-full h-full flex items-center justify-center text-4xl text-[#A8A39D]">
+                  ♫
+                </div>
               )}
             </div>
 
@@ -195,9 +217,9 @@ export default async function SongDetailPage({
                       href={`/songs?tag=${tag.slug}`}
                       className="text-[10px] px-2 py-0.5 border uppercase tracking-wider transition-opacity hover:opacity-70"
                       style={{
-                        background:  tag.color ? `${tag.color}18` : "#E2E0DB",
+                        background: tag.color ? `${tag.color}18` : "#E2E0DB",
                         borderColor: tag.color ? `${tag.color}40` : "#D5D2CB",
-                        color:       tag.color ?? "#8A8680",
+                        color: tag.color ?? "#8A8680",
                       }}
                     >
                       {tag.name}
@@ -221,16 +243,26 @@ export default async function SongDetailPage({
               {/* Meta row */}
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-3 text-xs text-[#8A8680]">
                 {album && (
-                  <Link href={`/albums/${album.slug}`} className="hover:text-[#3B5BDB] transition-colors flex items-center gap-1">
+                  <Link
+                    href={`/albums/${album.slug}`}
+                    className="hover:text-[#3B5BDB] transition-colors flex items-center gap-1"
+                  >
                     <span>◎</span>
                     <span>{album.title}</span>
                   </Link>
                 )}
                 {year && <span>{year}</span>}
-                {fmt(song.duration_sec) && <span>{fmt(song.duration_sec)}</span>}
+                {fmt(song.duration_sec) && (
+                  <span>{fmt(song.duration_sec)}</span>
+                )}
                 {song.language && (
                   <span className="uppercase tracking-widest font-mono text-[10px] px-1.5 py-0.5 bg-[#F0EDE8] text-[#8A8680]">
                     {song.language}
+                  </span>
+                )}
+                {song.created_from_spotify && (
+                  <span className="text-[10px] uppercase tracking-widest px-1.5 py-0.5 border border-[#1DB954]/40 text-[#1DB954] bg-[#1DB954]/10">
+                    Created from Spotify
                   </span>
                 )}
                 {(song.view_count ?? 0) > 0 && (
@@ -270,7 +302,6 @@ export default async function SongDetailPage({
           MAIN CONTENT — analysis + sections
       ══════════════════════════════════════════════ */}
       <div className="container mx-auto px-6 py-12 max-w-3xl">
-
         {analyses.length > 0 ? (
           <div className="space-y-5">
             <div className="flex items-baseline justify-between">
@@ -284,8 +315,11 @@ export default async function SongDetailPage({
 
             <div className="space-y-3">
               {analyses.map((a) => {
-                const authorName = a.profiles?.full_name ?? a.profiles?.username ?? "Community";
-                const intro = a.intro ? a.intro.slice(0, 180) : "No introduction yet.";
+                const authorName =
+                  a.profiles?.full_name ?? a.profiles?.username ?? "Community";
+                const intro = a.intro
+                  ? a.intro.slice(0, 180)
+                  : "No introduction yet.";
                 const isYou = user?.id && a.author_id === user.id;
                 return (
                   <Link
@@ -312,7 +346,9 @@ export default async function SongDetailPage({
                           {intro}
                         </p>
                       </div>
-                      <span className="text-xs text-[#3B5BDB] shrink-0">Read →</span>
+                      <span className="text-xs text-[#3B5BDB] shrink-0">
+                        Read →
+                      </span>
                     </div>
                   </Link>
                 );
@@ -322,7 +358,9 @@ export default async function SongDetailPage({
         ) : (
           <div className="py-16 text-center border border-dashed border-[#D5D2CB]">
             <p className="text-3xl text-[#C5C2BC] mb-3">✦</p>
-            <p className="font-serif text-lg text-[#5A5651]">Analysis coming soon.</p>
+            <p className="font-serif text-lg text-[#5A5651]">
+              Analysis coming soon.
+            </p>
             <p className="text-sm text-[#8A8680] italic mt-1">
               Our team is working on decoding this song.
             </p>
@@ -332,13 +370,26 @@ export default async function SongDetailPage({
         {/* ── Artist info strip ── */}
         {artist && (
           <div className="mt-14 pt-10 border-t border-[#E2E0DB]">
-            <p className="text-[10px] tracking-[0.4em] uppercase text-[#8A8680] mb-4">About the Artist</p>
-            <Link href={`/artists/${artist.slug}`} className="flex items-center gap-4 group">
+            <p className="text-[10px] tracking-[0.4em] uppercase text-[#8A8680] mb-4">
+              About the Artist
+            </p>
+            <Link
+              href={`/artists/${artist.slug}`}
+              className="flex items-center gap-4 group"
+            >
               <div className="w-12 h-12 rounded-full bg-[#E2E0DB] overflow-hidden shrink-0 ring-2 ring-[#E2E0DB] group-hover:ring-[#3B5BDB] transition-all">
                 {artist.cover_image ? (
-                  <Image src={artist.cover_image} alt={artist.name} width={48} height={48} className="w-full h-full object-cover" />
+                  <Image
+                    src={artist.cover_image}
+                    alt={artist.name}
+                    width={48}
+                    height={48}
+                    className="w-full h-full object-cover"
+                  />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-[#A8A39D]">♪</div>
+                  <div className="w-full h-full flex items-center justify-center text-[#A8A39D]">
+                    ♪
+                  </div>
                 )}
               </div>
               <div className="flex-1 min-w-0">
@@ -368,7 +419,10 @@ export default async function SongDetailPage({
               <p className="text-[10px] tracking-[0.4em] uppercase text-[#8A8680]">
                 More from {artist?.name}
               </p>
-              <Link href={`/artists/${artist?.slug}`} className="text-xs text-[#3B5BDB] hover:underline">
+              <Link
+                href={`/artists/${artist?.slug}`}
+                className="text-xs text-[#3B5BDB] hover:underline"
+              >
                 See all →
               </Link>
             </div>
@@ -380,9 +434,19 @@ export default async function SongDetailPage({
                   className="flex items-center gap-4 py-3 -mx-3 px-3 hover:bg-white transition-colors group"
                 >
                   <div className="w-9 h-9 bg-[#E2E0DB] overflow-hidden shrink-0">
-                    {s.cover_image
-                      ? <Image src={s.cover_image} alt={s.title} width={36} height={36} className="w-full h-full object-cover" />
-                      : <div className="w-full h-full flex items-center justify-center text-xs text-[#A8A39D]">♫</div>}
+                    {s.cover_image ? (
+                      <Image
+                        src={s.cover_image}
+                        alt={s.title}
+                        width={36}
+                        height={36}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-xs text-[#A8A39D]">
+                        ♫
+                      </div>
+                    )}
                   </div>
                   <p className="flex-1 text-sm font-medium text-[#1A1917] group-hover:text-[#3B5BDB] transition-colors truncate">
                     {s.title}
