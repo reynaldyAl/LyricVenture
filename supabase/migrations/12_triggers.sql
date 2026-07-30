@@ -1,6 +1,6 @@
 -- ============================================
 -- 12_triggers.sql
--- Database Triggers
+-- Database Triggers (idempotent — safe to re-run)
 -- ============================================
 
 -- ── AUTO-CREATE PROFILE SAAT USER REGISTER ──
@@ -38,26 +38,32 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS update_profiles_updated_at ON public.profiles;
 CREATE TRIGGER update_profiles_updated_at
   BEFORE UPDATE ON public.profiles
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
 
+DROP TRIGGER IF EXISTS update_artists_updated_at ON public.artists;
 CREATE TRIGGER update_artists_updated_at
   BEFORE UPDATE ON public.artists
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
 
+DROP TRIGGER IF EXISTS update_albums_updated_at ON public.albums;
 CREATE TRIGGER update_albums_updated_at
   BEFORE UPDATE ON public.albums
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
 
+DROP TRIGGER IF EXISTS update_songs_updated_at ON public.songs;
 CREATE TRIGGER update_songs_updated_at
   BEFORE UPDATE ON public.songs
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
 
+DROP TRIGGER IF EXISTS update_analyses_updated_at ON public.lyric_analyses;
 CREATE TRIGGER update_analyses_updated_at
   BEFORE UPDATE ON public.lyric_analyses
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
 
+DROP TRIGGER IF EXISTS update_sections_updated_at ON public.lyric_sections;
 CREATE TRIGGER update_sections_updated_at
   BEFORE UPDATE ON public.lyric_sections
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
