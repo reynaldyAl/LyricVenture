@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS public.lyric_analyses (
   background   TEXT,   -- sejarah & konteks penulisan lagu
   conclusion   TEXT,   -- kesimpulan/penutup analisis
   -- full_lyrics dihapus → pakai lyric_sections agar tidak redundan
-  is_published BOOLEAN NOT NULL DEFAULT FALSE,
+  status       TEXT NOT NULL DEFAULT 'draft', -- 'draft' | 'published'
   published_at TIMESTAMPTZ,
   created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()

@@ -10,6 +10,6 @@ RETURNS VOID AS $$
 BEGIN
   UPDATE public.songs
   SET view_count = view_count + 1
-  WHERE slug = song_slug AND is_published = true;
+  WHERE slug = song_slug AND status = 'published';
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS public.songs (
   cover_image      TEXT,                       -- bisa override cover album
   language         TEXT NOT NULL DEFAULT 'en', -- bahasa lirik: 'en', 'id', dll
   view_count       INT NOT NULL DEFAULT 0,     -- untuk popular/trending
-  is_published     BOOLEAN NOT NULL DEFAULT FALSE,
+  status           TEXT NOT NULL DEFAULT 'draft', -- 'draft' | 'published'
   published_at     TIMESTAMPTZ,
   -- SEO
   meta_title       TEXT,

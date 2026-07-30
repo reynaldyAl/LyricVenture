@@ -39,7 +39,7 @@ VALUES (
 ) ON CONFLICT (slug) DO NOTHING;
 
 -- Song
-INSERT INTO public.songs (artist_id, album_id, title, slug, spotify_track_id, release_date, duration_sec, language, is_published, published_at)
+INSERT INTO public.songs (artist_id, album_id, title, slug, spotify_track_id, release_date, duration_sec, language, status, published_at)
 VALUES (
   (SELECT id FROM public.artists WHERE slug = 'the-beatles'),
   (SELECT id FROM public.albums WHERE slug = 'abbey-road'),
@@ -49,7 +49,7 @@ VALUES (
   '1969-09-26',
   259,
   'en',
-  true,
+  'published',
   NOW()
 ) ON CONFLICT (slug) DO NOTHING;
 
