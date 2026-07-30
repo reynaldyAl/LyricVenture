@@ -1,0 +1,104 @@
+name: Keep Supabase Alive
+
+on:
+  # Jadwal: setiap hari jam 6 pagi dan 6 sore UTC (= jam 14:00 & 02:00 WIB)
+  # Ini lebih dari cukup untuk mencegah Supabase pause (batas: 7 hari inaktif)
+  schedule:
+    - cron: '0 6,18 * * *'   # 2x sehari
+
+  # Bisa juga trigger manual dari GitHub Actions tab
+  workflow_dispatch:
+    inputs:
+      job:
+        description: 'Job to run (keep-alive / stats-snapshot / cleanup-drafts / all)'
+        required: false
+        default: 'keep-alive'
+
+jobs:
+  # ── Keep Alive ──────────────────────────────────────────────────────────────
+  keep-alive:
+    name: 🏓 Ping Supabase (Keep Alive)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping /api/cron/keep-alive
+        run: |
+          RESPONSE=$(curl -sf \
+            -w "\nHTTP_STATUS:%{http_code}" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.APP_URL }}/api/cron/keep-alive")
+
+          HTTP_STATUS=$(echo "$RESPONSE" | grep "HTTP_STATUS:" | cut -d: -f2)
+          BODY=$(echo "$RESPONSE" | grep -v "HTTP_STATUS:")
+
+          echo "Status: $HTTP_STATUS"
+          echo "Body: $BODY"
+
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "❌ Keep-alive failed with status $HTTP_STATUS"
+            exit 1
+          fi
+          echo "✅ Supabase is alive!"
+
+  # ── Daily Stats Snapshot ────────────────────────────────────────────────────
+  stats-snapshot:
+    name: 📊 Daily Stats Snapshot
+    runs-on: ubuntu-latest
+    # Hanya jalan jam 6 pagi UTC (1x sehari), bukan jam 6 sore
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'schedule' && contains(github.event.schedule, '0 6')) }}
+    steps:
+      - name: Run stats snapshot
+        run: |
+          RESPONSE=$(curl -sf \
+            -w "\nHTTP_STATUS:%{http_code}" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.APP_URL }}/api/cron/stats-snapshot")
+
+          HTTP_STATUS=$(echo "$RESPONSE" | grep "HTTP_STATUS:" | cut -d: -f2)
+          BODY=$(echo "$RESPONSE" | grep -v "HTTP_STATUS:")
+
+          echo "Status: $HTTP_STATUS"
+          echo "Response: $BODY"
+
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "❌ Stats snapshot failed"
+            exit 1
+          fi
+          echo "✅ Stats snapshot complete!"
+
+  # ── Weekly Cleanup Drafts ────────────────────────────────────────────────────
+  cleanup-drafts:
+    name: 🧹 Weekly Cleanup Drafts
+    runs-on: ubuntu-latest
+    # Hanya jalan hari Minggu
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'schedule' && startsWith(github.event.schedule, '0 6') && toJSON(github.event) != '') }}
+    steps:
+      - name: Check if Sunday
+        id: check-day
+        run: |
+          DAY=$(date +%u)  # 1=Monday, 7=Sunday
+          if [ "$DAY" = "7" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "run=true" >> $GITHUB_OUTPUT
+          else
+            echo "run=false" >> $GITHUB_OUTPUT
+            echo "⏭ Skipping cleanup-drafts (not Sunday)"
+          fi
+
+      - name: Run cleanup-drafts
+        if: steps.check-day.outputs.run == 'true'
+        run: |
+          RESPONSE=$(curl -sf \
+            -w "\nHTTP_STATUS:%{http_code}" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.APP_URL }}/api/cron/cleanup-drafts")
+
+          HTTP_STATUS=$(echo "$RESPONSE" | grep "HTTP_STATUS:" | cut -d: -f2)
+          BODY=$(echo "$RESPONSE" | grep -v "HTTP_STATUS:")
+
+          echo "Status: $HTTP_STATUS"
+          echo "Response: $BODY"
+
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "❌ Cleanup drafts failed"
+            exit 1
+          fi
+          echo "✅ Cleanup complete!"
