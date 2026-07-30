@@ -26,8 +26,8 @@ CREATE INDEX IF NOT EXISTS idx_songs_album_id
   ON public.songs(album_id);
 CREATE INDEX IF NOT EXISTS idx_songs_slug
   ON public.songs(slug);
-CREATE INDEX IF NOT EXISTS idx_songs_published
-  ON public.songs(is_published, published_at DESC);
+CREATE INDEX IF NOT EXISTS idx_songs_status
+  ON public.songs(status, published_at DESC);
 CREATE INDEX IF NOT EXISTS idx_songs_view_count
   ON public.songs(view_count DESC);
 
@@ -40,8 +40,8 @@ CREATE INDEX IF NOT EXISTS idx_song_tags_tag
 -- lyric_analyses
 CREATE INDEX IF NOT EXISTS idx_analyses_song_id
   ON public.lyric_analyses(song_id);
-CREATE INDEX IF NOT EXISTS idx_analyses_published
-  ON public.lyric_analyses(is_published);
+CREATE INDEX IF NOT EXISTS idx_analyses_status
+  ON public.lyric_analyses(status);
 
 -- lyric_sections ✅ pakai order_index
 CREATE INDEX IF NOT EXISTS idx_sections_analysis
