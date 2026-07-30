@@ -22,13 +22,13 @@ jobs:
     steps:
       - name: Ping /api/cron/keep-alive
         run: |
-          RESPONSE=$(curl -sf \
+          RESPONSE=$(curl -sS \
             -w "\nHTTP_STATUS:%{http_code}" \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
             "${{ secrets.APP_URL }}/api/cron/keep-alive")
 
-          HTTP_STATUS=$(echo "$RESPONSE" | grep "HTTP_STATUS:" | cut -d: -f2)
-          BODY=$(echo "$RESPONSE" | grep -v "HTTP_STATUS:")
+          HTTP_STATUS="$(printf '%s\n' "$RESPONSE" | sed -n 's/^HTTP_STATUS://p' | tail -n1)"
+          BODY="$(printf '%s\n' "$RESPONSE" | sed '/^HTTP_STATUS:/d')"
 
           echo "Status: $HTTP_STATUS"
           echo "Body: $BODY"
@@ -48,19 +48,19 @@ jobs:
     steps:
       - name: Run stats snapshot
         run: |
-          RESPONSE=$(curl -sf \
+          RESPONSE=$(curl -sS \
             -w "\nHTTP_STATUS:%{http_code}" \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
             "${{ secrets.APP_URL }}/api/cron/stats-snapshot")
 
-          HTTP_STATUS=$(echo "$RESPONSE" | grep "HTTP_STATUS:" | cut -d: -f2)
-          BODY=$(echo "$RESPONSE" | grep -v "HTTP_STATUS:")
+          HTTP_STATUS="$(printf '%s\n' "$RESPONSE" | sed -n 's/^HTTP_STATUS://p' | tail -n1)"
+          BODY="$(printf '%s\n' "$RESPONSE" | sed '/^HTTP_STATUS:/d')"
 
           echo "Status: $HTTP_STATUS"
           echo "Response: $BODY"
 
           if [ "$HTTP_STATUS" != "200" ]; then
-            echo "❌ Stats snapshot failed"
+            echo "❌ Stats snapshot failed with status $HTTP_STATUS"
             exit 1
           fi
           echo "✅ Stats snapshot complete!"
@@ -86,19 +86,19 @@ jobs:
       - name: Run cleanup-drafts
         if: steps.check-day.outputs.run == 'true'
         run: |
-          RESPONSE=$(curl -sf \
+          RESPONSE=$(curl -sS \
             -w "\nHTTP_STATUS:%{http_code}" \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
             "${{ secrets.APP_URL }}/api/cron/cleanup-drafts")
 
-          HTTP_STATUS=$(echo "$RESPONSE" | grep "HTTP_STATUS:" | cut -d: -f2)
-          BODY=$(echo "$RESPONSE" | grep -v "HTTP_STATUS:")
+          HTTP_STATUS="$(printf '%s\n' "$RESPONSE" | sed -n 's/^HTTP_STATUS://p' | tail -n1)"
+          BODY="$(printf '%s\n' "$RESPONSE" | sed '/^HTTP_STATUS:/d')"
 
           echo "Status: $HTTP_STATUS"
           echo "Response: $BODY"
 
           if [ "$HTTP_STATUS" != "200" ]; then
-            echo "❌ Cleanup drafts failed"
+            echo "❌ Cleanup drafts failed with status $HTTP_STATUS"
             exit 1
           fi
           echo "✅ Cleanup complete!"
