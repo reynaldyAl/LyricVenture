@@ -34,7 +34,7 @@ export async function GET(request: Request) {
       supabase
         .from('lyric_analyses')
         .select('id', { count: 'exact', head: true })
-        .eq('is_published', true),
+        .eq('status', 'published'),  // ✅ pakai status, bukan is_published
     ])
 
     // Cek errors

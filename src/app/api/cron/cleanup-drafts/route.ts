@@ -34,14 +34,14 @@ export async function GET(request: Request) {
     const { count: beforeCount } = await supabase
       .from('lyric_analyses')
       .select('id', { count: 'exact', head: true })
-      .eq('is_published', false)
+      .eq('status', 'draft')          // ✅ pakai status, bukan is_published
       .lt('updated_at', cutoff)
 
     // Hapus draft lama (lebih dari 90 hari tidak diupdate)
     const { error: deleteError } = await supabase
       .from('lyric_analyses')
       .delete()
-      .eq('is_published', false)
+      .eq('status', 'draft')          // ✅ pakai status, bukan is_published
       .lt('updated_at', cutoff)
 
     if (deleteError) throw new Error(deleteError.message)
