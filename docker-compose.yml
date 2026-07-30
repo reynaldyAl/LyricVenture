@@ -14,3 +14,40 @@ services:
       NODE_ENV: production
       NEXT_TELEMETRY_DISABLED: "1"
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/cron"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ── Cron Service ────────────────────────────────────────────────────────────
+  # Menjalankan cron jobs secara berkala menggunakan Alpine + crond
+  # Catatan: service ini hanya aktif saat Docker sedang berjalan (cocok untuk VPS)
+  # Untuk production tanpa Docker 24/7, gunakan GitHub Actions sebagai backup
+  cron:
+    image: alpine:3.19
+    container_name: lyric-venture-cron
+    depends_on:
+      web:
+        condition: service_healthy
+    env_file:
+      - .env.local
+    environment:
+      APP_URL: "http://web:3000"
+    command: >
+      sh -c "
+        apk add --no-cache curl &&
+        echo 'Cron service started. Registered jobs:' &&
+
+        (crontab -l 2>/dev/null; echo '*/10 * * * * curl -sf -o /dev/null -H \"Authorization: Bearer $${CRON_SECRET}\" $${APP_URL}/api/cron/keep-alive && echo \"[keep-alive] OK\" || echo \"[keep-alive] FAILED\"') | crontab - &&
+        (crontab -l 2>/dev/null; echo '0 0 * * * curl -sf -o /dev/null -H \"Authorization: Bearer $${CRON_SECRET}\" $${APP_URL}/api/cron/stats-snapshot && echo \"[stats-snapshot] OK\" || echo \"[stats-snapshot] FAILED\"') | crontab - &&
+        (crontab -l 2>/dev/null; echo '0 3 * * 0 curl -sf -o /dev/null -H \"Authorization: Bearer $${CRON_SECRET}\" $${APP_URL}/api/cron/cleanup-drafts && echo \"[cleanup-drafts] OK\" || echo \"[cleanup-drafts] FAILED\"') | crontab - &&
+
+        echo '--- Active crontab ---' &&
+        crontab -l &&
+        echo '---------------------' &&
+
+        crond -f -L /dev/stdout
+      "
+    restart: unless-stopped
