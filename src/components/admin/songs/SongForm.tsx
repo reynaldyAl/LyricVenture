@@ -286,19 +286,46 @@ export default function SongForm({ mode, song, artists, albums, tags, role = "au
         </CardContent>
       </Card>
 
-      {/* ── Media Links — tidak berubah ── */}
+      {/* ── Media Links ── */}
       <Card className="bg-zinc-900 border-zinc-800">
         <CardContent className="p-5 space-y-4">
           <p className="text-[10px] uppercase tracking-widest text-zinc-500 font-semibold">Media Links</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Spotify — smart input: accepts URL or bare track ID */}
             <div className="space-y-1.5">
-              <Label className="text-xs text-zinc-400">Spotify Track ID</Label>
+              <Label className="text-xs text-zinc-400">Spotify</Label>
               <Input
                 value={form.spotify_track_id}
-                onChange={(e) => set("spotify_track_id", e.target.value)}
-                placeholder="e.g. 4iV5W9uYEdYUVa79Axb7Rh"
-                className="bg-zinc-800 border-zinc-700 text-zinc-100 placeholder:text-zinc-600 focus:border-indigo-500 h-9 text-sm font-mono"
+                onChange={(e) => {
+                  // Auto-extract ID from full Spotify URL (strips ?si=... too)
+                  const raw = e.target.value;
+                  const match = raw.match(/spotify\.com\/track\/([A-Za-z0-9]+)/);
+                  // Also handle bare ID with ?si= suffix pasted directly
+                  const bareMatch = raw.match(/^([A-Za-z0-9]{22})(\?.*)?$/);
+                  set("spotify_track_id", match ? match[1] : bareMatch ? bareMatch[1] : raw.trim());
+                }}
+                placeholder="Paste Spotify URL or track ID"
+                className="bg-zinc-800 border-zinc-700 text-zinc-100 placeholder:text-zinc-600 focus:border-green-500 h-9 text-sm font-mono"
               />
+              <p className="text-[10px] text-zinc-600">
+                e.g. <span className="text-zinc-500">https://open.spotify.com/track/4iV5W9uY...</span>
+              </p>
+              {/* Live mini preview */}
+              {form.spotify_track_id && (
+                <div className="mt-2 rounded overflow-hidden border border-zinc-700" style={{ borderLeft: "3px solid #1DB954" }}>
+                  <iframe
+                    key={form.spotify_track_id}
+                    src={`https://open.spotify.com/embed/track/${form.spotify_track_id}?utm_source=generator&theme=1`}
+                    width="100%"
+                    height="80"
+                    frameBorder="0"
+                    allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                    loading="lazy"
+                    title="Spotify preview"
+                    style={{ display: "block" }}
+                  />
+                </div>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-zinc-400">YouTube URL</Label>
