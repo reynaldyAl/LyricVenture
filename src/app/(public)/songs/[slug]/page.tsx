@@ -4,6 +4,7 @@ import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 import type { Tables } from "@/lib/types";
 import type { Metadata } from "next";
+import SpotifyPlayer from "@/components/public/SpotifyPlayer";
 
 // ── Dynamic metadata per song ─────────────────────────────
 export async function generateMetadata({
@@ -263,6 +264,19 @@ export default async function SongDetailPage({
               </div>
             </div>
           </div>
+
+          {/* ── Spotify Player (Moved outside flex container) ── */}
+          {song.spotify_track_id && (
+            <div className="mt-8">
+              <SpotifyPlayer
+                trackId={song.spotify_track_id}
+                title={song.title}
+                artist={artist?.name}
+                coverImage={song.cover_image ?? undefined}
+              />
+            </div>
+          )}
+
         </div>
       </div>
 
