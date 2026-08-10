@@ -4,6 +4,7 @@ import Image from "next/image";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import LyricAnalysis from "@/components/public/LyricAnalysis";
+import SpotifyPlayer from "@/components/public/SpotifyPlayer";
 import type { Tables } from "@/lib/types";
 
 type Highlight    = Tables<"lyric_highlights">;
@@ -125,7 +126,8 @@ export default async function AnalysisDetailPage({
 
       {/* ── Header ── */}
       <section className="relative overflow-hidden border-b border-[#E2E0DB] bg-white">
-        <div className="absolute inset-0">
+        {/* Decorative blurs — pointer-events:none so they never block clicks */}
+        <div className="absolute inset-0 pointer-events-none">
           <div className="absolute -top-20 -right-24 h-72 w-72 rounded-full bg-[#3B5BDB]/10 blur-3xl" />
           <div className="absolute -bottom-24 -left-24 h-72 w-72 rounded-full bg-[#1A1917]/8 blur-3xl" />
         </div>
@@ -207,6 +209,18 @@ export default async function AnalysisDetailPage({
           </div>
         </div>
       </section>
+
+      {/* ── Spotify Player (between header and content) ── */}
+      {song?.spotify_track_id && (
+        <div className="container mx-auto px-6 pt-6 max-w-3xl">
+          <SpotifyPlayer
+            trackId={song.spotify_track_id}
+            title={song?.title}
+            artist={artist?.name}
+            coverImage={song?.cover_image ?? undefined}
+          />
+        </div>
+      )}
 
       {/* ── Content ── */}
       <div className="container mx-auto px-6 py-12 max-w-3xl space-y-10">
