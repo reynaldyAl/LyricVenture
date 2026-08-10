@@ -80,7 +80,7 @@ export default async function HomePage() {
           HERO — elevated editorial
       ══════════════════════════════════════════════ */}
       <section className="relative overflow-hidden">
-        <div className="absolute inset-0">
+        <div className="absolute inset-0 pointer-events-none">
           <div className="absolute -top-20 -right-16 h-72 w-72 rounded-full bg-[#3B5BDB]/12 blur-3xl" />
           <div className="absolute -bottom-24 -left-20 h-72 w-72 rounded-full bg-[#1A1917]/10 blur-3xl" />
         </div>

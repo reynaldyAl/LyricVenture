@@ -100,7 +100,8 @@ export default async function AlbumsPage({
     <div style={{ background: "#F4F3F0", color: "#1A1917" }}>
       {/* Header */}
       <section className="relative overflow-hidden border-b border-[#E2E0DB] bg-white">
-        <div className="absolute inset-0">
+        {/* Decorative blurs */}
+        <div className="absolute inset-0 pointer-events-none">
           <div className="absolute -top-20 -right-24 h-72 w-72 rounded-full bg-[#3B5BDB]/10 blur-3xl" />
           <div className="absolute -bottom-24 -left-24 h-72 w-72 rounded-full bg-[#1A1917]/8 blur-3xl" />
         </div>
