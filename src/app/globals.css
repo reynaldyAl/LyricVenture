@@ -2,13 +2,37 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Prevent horizontal scroll on all pages (mobile fix) ── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  overflow-x: clip;
+}
+
+body {
+  overflow-x: clip;
+  /* Ensure body is at least 100% viewport width but not more */
+  width: 100%;
+  max-width: 100vw;
+}
+
 @layer utilities {
-  .text-balance { text-wrap: balance; }
+  .text-balance {
+    text-wrap: balance;
+  }
+
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
-  .scrollbar-hide::-webkit-scrollbar { display: none; }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 /* ╔══════════════════════════════════════════════════════════╗
@@ -29,10 +53,12 @@
   transition: border-color 0.15s, box-shadow 0.15s;
   border-radius: 0;
 }
+
 .auth-input:focus {
   border-color: #1A1917;
-  box-shadow: 0 0 0 3px rgba(26,25,23,0.06);
+  box-shadow: 0 0 0 3px rgba(26, 25, 23, 0.06);
 }
+
 .auth-input::placeholder {
   color: #C5C2BC;
 }
@@ -60,9 +86,11 @@
   transition: background 0.15s;
   border-radius: 0;
 }
+
 .auth-btn-primary:hover:not(:disabled) {
   background: #2D2B27;
 }
+
 .auth-btn-primary:disabled {
   opacity: 0.6;
   cursor: not-allowed;
@@ -83,6 +111,7 @@
   transition: border-color 0.15s, background 0.15s;
   border-radius: 0;
 }
+
 .auth-btn-google:hover {
   border-color: #1A1917;
   background: #F8F7F5;
@@ -92,6 +121,7 @@
 .auth-link {
   transition: opacity 0.15s;
 }
+
 .auth-link:hover {
   opacity: 0.7;
 }
@@ -113,37 +143,46 @@
    ╚══════════════════════════════════════════════════════════╝ */
 
 @keyframes vinyl-spin {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
+
 .vinyl-spin {
   animation: vinyl-spin 4s linear infinite;
   animation-play-state: paused;
 }
+
 .vinyl-card:hover .vinyl-spin {
   animation-play-state: running;
 }
+
 .vinyl-grooves::after {
   content: '';
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  background: repeating-radial-gradient(
-    circle at center,
-    transparent 20%,
-    rgba(0,0,0,0.06) 21%,
-    transparent 22%,
-    transparent 24%,
-    rgba(0,0,0,0.04) 25%
-  );
+  background: repeating-radial-gradient(circle at center,
+      transparent 20%,
+      rgba(0, 0, 0, 0.06) 21%,
+      transparent 22%,
+      transparent 24%,
+      rgba(0, 0, 0, 0.04) 25%);
   pointer-events: none;
 }
+
 .vinyl-hole::before {
   content: '';
   position: absolute;
-  top: 50%; left: 50%;
+  top: 50%;
+  left: 50%;
   transform: translate(-50%, -50%);
-  width: 14%; height: 14%;
+  width: 14%;
+  height: 14%;
   border-radius: 50%;
   background: #F0EDE6;
   z-index: 2;
@@ -155,52 +194,56 @@
 
 @layer base {
   :root {
-    --background:           35 18% 93%;
-    --foreground:           22 15% 12%;
-    --card:                 0 0% 100%;
-    --card-foreground:      22 15% 12%;
-    --popover:              0 0% 100%;
-    --popover-foreground:   22 15% 12%;
-    --primary:              218 60% 30%;
-    --primary-foreground:   35 18% 95%;
-    --secondary:            30 10% 87%;
+    --background: 35 18% 93%;
+    --foreground: 22 15% 12%;
+    --card: 0 0% 100%;
+    --card-foreground: 22 15% 12%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 22 15% 12%;
+    --primary: 218 60% 30%;
+    --primary-foreground: 35 18% 95%;
+    --secondary: 30 10% 87%;
     --secondary-foreground: 22 12% 22%;
-    --muted:                30 8% 83%;
-    --muted-foreground:     22 6% 46%;
-    --accent:               218 25% 88%;
-    --accent-foreground:    218 60% 25%;
-    --destructive:          0 72% 52%;
+    --muted: 30 8% 83%;
+    --muted-foreground: 22 6% 46%;
+    --accent: 218 25% 88%;
+    --accent-foreground: 218 60% 25%;
+    --destructive: 0 72% 52%;
     --destructive-foreground: 0 0% 98%;
-    --border:               30 10% 80%;
-    --input:                30 10% 80%;
-    --ring:                 218 60% 30%;
+    --border: 30 10% 80%;
+    --input: 30 10% 80%;
+    --ring: 218 60% 30%;
     --radius: 0.5rem;
   }
+
   .dark {
-    --background:   220 15% 10%;
-    --foreground:   35 12% 88%;
-    --card:         220 14% 13%;
+    --background: 220 15% 10%;
+    --foreground: 35 12% 88%;
+    --card: 220 14% 13%;
     --card-foreground: 35 12% 88%;
-    --popover:      220 14% 13%;
+    --popover: 220 14% 13%;
     --popover-foreground: 35 12% 88%;
-    --primary:      218 55% 58%;
+    --primary: 218 55% 58%;
     --primary-foreground: 220 15% 10%;
-    --secondary:    220 10% 18%;
+    --secondary: 220 10% 18%;
     --secondary-foreground: 35 10% 72%;
-    --muted:        220 10% 18%;
+    --muted: 220 10% 18%;
     --muted-foreground: 35 6% 50%;
-    --accent:       220 12% 22%;
+    --accent: 220 12% 22%;
     --accent-foreground: 35 12% 88%;
-    --destructive:  0 62% 35%;
+    --destructive: 0 62% 35%;
     --destructive-foreground: 0 0% 98%;
-    --border:       220 10% 20%;
-    --input:        220 10% 20%;
-    --ring:         218 55% 58%;
+    --border: 220 10% 20%;
+    --input: 220 10% 20%;
+    --ring: 218 55% 58%;
   }
 }
 
 @layer base {
-  * { @apply border-border; }
+  * {
+    @apply border-border;
+  }
+
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
